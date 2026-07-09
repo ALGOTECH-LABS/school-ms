@@ -30,6 +30,10 @@ Route::controller(OnlineCourseController::class)->group(function () {
 
         Route::post('teacher/addons/courses/material/store', 'materialStore')->name('teacher.addons.course.material.store');
         Route::post('teacher/addons/courses/material/delete/{id}', 'materialDelete')->name('teacher.addons.course.material.delete');
+
+        Route::post('teacher/addons/courses/session/store', 'sessionStore')->name('teacher.addons.course.session.store');
+        Route::post('teacher/addons/courses/session/cancel/{id}', 'sessionCancel')->name('teacher.addons.course.session.cancel');
+        Route::post('teacher/addons/courses/session/delete/{id}', 'sessionDelete')->name('teacher.addons.course.session.delete');
     });
 
     // ---- Student ----

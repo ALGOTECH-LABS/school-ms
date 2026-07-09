@@ -22,6 +22,11 @@ class Course extends Model
         return $this->hasMany(CourseLesson::class, 'course_id');
     }
 
+    public function sessions()
+    {
+        return $this->hasMany(CourseSession::class, 'course_id')->orderBy('session_date');
+    }
+
     public function teacher()
     {
         return $this->belongsTo(User::class, 'teacher_id');

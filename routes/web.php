@@ -777,6 +777,7 @@ Route::controller(StudentController::class)->middleware('student','auth')->group
 
     //Marks routes
     Route::get('student/marks', 'marks')->name('student.marks');
+    Route::get('student/academic-history', 'academicHistory')->name('student.academic_history');
 
 
     //Noticeboard routes

@@ -166,6 +166,33 @@
     </div>
 
     <div class="side-card">
+      <h6><i class="bi bi-camera-video" style="color:#00955f;"></i> {{ get_phrase('Live sessions') }}
+        @if($upcoming->count())<span class="badge-type">{{ $upcoming->count() }}</span>@endif</h6>
+      @forelse($upcoming as $s)
+        @php
+          $plat = ['zoom'=>'Zoom','meet'=>'Google Meet','teams'=>'Microsoft Teams','other'=>'Online'][$s->platform] ?? 'Online';
+        @endphp
+        <div class="side-link" style="flex-direction:column;align-items:stretch;gap:6px;">
+          <div class="d-flex justify-content-between align-items-center" style="gap:8px;">
+            <span class="t" style="font-weight:600;">{{ $s->title }}
+              @if($s->is_live)<span class="badge-type" style="background:#fdECEC;color:#c0392b;">● {{ get_phrase('LIVE') }}</span>@endif
+            </span>
+          </div>
+          <span class="d" style="white-space:normal;">
+            <i class="bi bi-calendar-event"></i> {{ $s->session_date->format('D, d M · H:i') }} · {{ $plat }}
+          </span>
+          @if($s->description)<span class="d" style="white-space:normal;color:#8a92a5;">{{ $s->description }}</span>@endif
+          @if($s->meeting_url)
+            <a class="eBtn btn-primary" target="_blank" href="{{ $s->meeting_url }}" style="padding:6px 12px;font-size:12.5px;">
+              <i class="bi bi-box-arrow-up-right"></i> {{ get_phrase('Join session') }}</a>
+          @endif
+        </div>
+      @empty
+        <span class="side-empty">{{ get_phrase('No upcoming live sessions.') }}</span>
+      @endforelse
+    </div>
+
+    <div class="side-card">
       <h6><i class="bi bi-file-earmark-text" style="color:#00955f;"></i> {{ get_phrase('Syllabus') }}</h6>
       @forelse($syllabus as $s)
         <a class="side-link" target="_blank" href="{{ asset('assets/uploads/syllabus/'.$s->file) }}">

@@ -1821,14 +1821,16 @@ class AdminController extends Controller
 
         $active_session = get_school_settings(auth()->user()->school_id)->value('running_session');
 
-        $attendance_of_students = DailyAttendances::whereBetween('timestamp', [$first_date, $last_date])->where(['class_id' => $data['class_id'], 'section_id' => $data['section_id'], 'school_id' => auth()->user()->school_id, 'session_id' => $active_session])->get()->toArray();
+        // One representative row per student for the queried month (the view's
+        // array_slice(0, $no_of_users) grid expects distinct students up front).
+        $attendance_of_students = DailyAttendances::whereBetween('timestamp', [$first_date, $last_date])->where(['class_id' => $data['class_id'], 'section_id' => $data['section_id'], 'school_id' => auth()->user()->school_id, 'session_id' => $active_session])->orderBy('student_id')->orderBy('timestamp')->get()->unique('student_id')->values()->toArray();
 
         $students_details = Enrollment::where('class_id', $page_data['class_id'])
         ->where('section_id', $page_data['section_id'])
         ->get();
-        
 
-        $no_of_users = DailyAttendances::where(['class_id' => $data['class_id'], 'section_id' => $data['section_id'], 'school_id' => auth()->user()->school_id, 'session_id' => $active_session])->distinct()->count('student_id');
+
+        $no_of_users = count($attendance_of_students);
 
         $classes = Classes::where('school_id', auth()->user()->school_id)->get();
 
