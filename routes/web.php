@@ -590,6 +590,11 @@ Route::controller(TeacherController::class)->middleware('teacher','auth')->group
     Route::get('teacher/offline_exam', 'offlineExamList')->name('teacher.offline_exam');
     Route::get('teacher/offline_exam/export/{id}', 'offlineExamExport')->name('teacher.offline_exam.export');
     Route::get('teacher/exam_list_by_class/{id}', 'classWiseOfflineExam')->name('teacher.class_wise_exam_list');
+    Route::get('teacher/exam/create-modal', 'createOfflineExam')->name('teacher.offline_exam.open_modal');
+    Route::post('teacher/offline_exam', 'offlineExamCreate')->name('teacher.create.offline_exam');
+    Route::get('teacher/offline_exam/edit/{id}', 'editOfflineExam')->name('teacher.edit.offline_exam');
+    Route::post('teacher/offline_exam/update/{id}', 'offlineExamUpdate')->name('teacher.offline_exam.update');
+    Route::post('teacher/offline_exam/delete/{id}', 'offlineExamDelete')->name('teacher.offline_exam.delete');
 
 
     //Routine routes

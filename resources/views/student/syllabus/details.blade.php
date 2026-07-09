@@ -48,8 +48,20 @@
     <h4>{{ $syllabus->title }}</h4>
     <p>{{ $subject->name ?? '' }} · {{ $course ? $course->topics->count().' '.get_phrase('topics').' · '.$lessonCount.' '.get_phrase('lessons') : get_phrase('Outline') }}</p>
   </div>
-  <a class="eBtn dl" href="{{ route('student.syllabus.pdf', $syllabus->id) }}"><i class="bi bi-file-earmark-pdf"></i> {{ get_phrase('Download PDF') }}</a>
+  <div class="d-flex" style="gap:8px;">
+    @if($syllabus->file)
+      <a class="eBtn dl" target="_blank" href="{{ asset('assets/uploads/syllabus/'.$syllabus->file) }}"><i class="bi bi-download"></i> {{ get_phrase('File') }}</a>
+    @endif
+    <a class="eBtn dl" href="{{ route('student.syllabus.pdf', $syllabus->id) }}"><i class="bi bi-file-earmark-pdf"></i> {{ get_phrase('Download PDF') }}</a>
+  </div>
 </div>
+
+@if(!empty($syllabus->content))
+  <div class="sy-topic">
+    <div class="head"><i class="bi bi-file-text" style="color:#00955f;"></i> {{ get_phrase('Syllabus') }}</div>
+    <div class="sy-note" style="padding:18px 22px;">{!! $syllabus->content !!}</div>
+  </div>
+@endif
 
 @if($course && $course->topics->count())
   @foreach($course->topics as $ti => $topic)

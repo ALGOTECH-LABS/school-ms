@@ -2135,15 +2135,12 @@ class AdminController extends Controller
 
         $active_session = get_school_settings(auth()->user()->school_id)->value('running_session');
 
-        $file = $data['syllabus_file'];
-
-        if ($file) {
+        // File is now OPTIONAL — a syllabus can be written inline (WYSIWYG content) instead.
+        $filename = null;
+        if ($request->hasFile('syllabus_file')) {
+            $file = $request->file('syllabus_file');
             $filename = $file->getClientOriginalName();
-            $extension = $file->getClientOriginalExtension(); //Get extension of uploaded file
-
             $file->move(public_path('assets/uploads/syllabus/'), $filename);
-
-            $filepath = asset('assets/uploads/syllabus/'.$filename);
         }
 
         Syllabus::create([
@@ -2152,6 +2149,7 @@ class AdminController extends Controller
             'section_id' => $data['section_id'],
             'subject_id' => $data['subject_id'],
             'file' => $filename,
+            'content' => $data['content'] ?? null,
             'school_id' => auth()->user()->school_id,
             'session_id' => $active_session,
         ]);
@@ -2187,6 +2185,7 @@ class AdminController extends Controller
             'section_id' => $data['section_id'],
             'subject_id' => $data['subject_id'],
             'file' => $filename,
+            'content' => $data['content'] ?? null,
             'school_id' => auth()->user()->school_id,
             'session_id' => $active_session,
         ]);

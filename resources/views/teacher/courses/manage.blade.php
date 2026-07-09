@@ -381,6 +381,14 @@
 
 </div>
 
+{{-- hidden form used by khRemove() --}}
+<form id="kh-remove-form" method="POST" action="{{ route('teacher.addons.course.student.remove') }}" style="display:none;">
+  @csrf
+  <input type="hidden" name="course_id" id="kh-remove-course">
+  <input type="hidden" name="student_id" id="kh-remove-student">
+  <input type="hidden" name="reason" id="kh-remove-reason">
+</form>
+
 <script type="text/javascript">
   "use strict";
   function toggleMat(sel){
@@ -388,6 +396,16 @@
     var isFile = sel.value === 'file';
     f.querySelector('.mat-file').style.display = isFile ? '' : 'none';
     f.querySelector('.mat-url').style.display  = isFile ? 'none' : '';
+  }
+  function khRemove(courseId, studentId, name){
+    var reason = window.prompt("{{ get_phrase('Reason for removing') }} " + name + " {{ get_phrase('from this course:') }}", "");
+    if(reason === null) return;                 // cancelled
+    reason = reason.trim();
+    if(reason === ""){ alert("{{ get_phrase('A reason is required to remove a student.') }}"); return; }
+    document.getElementById('kh-remove-course').value  = courseId;
+    document.getElementById('kh-remove-student').value = studentId;
+    document.getElementById('kh-remove-reason').value  = reason;
+    document.getElementById('kh-remove-form').submit();
   }
 </script>
 @endsection

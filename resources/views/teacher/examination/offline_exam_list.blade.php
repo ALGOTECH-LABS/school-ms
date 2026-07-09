@@ -15,6 +15,9 @@
                         <li><a href="#">{{ get_phrase('Exam List') }}</a></li>
                     </ul>
                 </div>
+                <a class="eBtn btn-primary" href="javascript:;"
+                   onclick="rightModal('{{ route('teacher.offline_exam.open_modal') }}', '{{ get_phrase('Create exam') }}')">
+                   <i class="bi bi-plus"></i> {{ get_phrase('Create exam') }}</a>
             </div>
         </div>
     </div>
@@ -65,9 +68,12 @@
                         <tr>
                             <th>#</th>
                             <th>{{ get_phrase('Exam') }}</th>
+                            <th>{{ get_phrase('Class') }}</th>
+                            <th>{{ get_phrase('Subject') }}</th>
                             <th>{{ get_phrase('Starting Time') }}</th>
                             <th>{{ get_phrase('Ending Time') }}</th>
                             <th>{{ get_phrase('Total Marks') }}</th>
+                            <th class="text-end">{{ get_phrase('Action') }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -75,9 +81,17 @@
                             <tr>
                                 <td>{{ $exams->firstItem() + $key }}</td>
                                 <td>{{ $exam->name }}</td>
+                                <td>{{ optional(\App\Models\Classes::find($exam->class_id))->name ?? '—' }}</td>
+                                <td>{{ optional(\App\Models\Subject::find($exam->subject_id))->name ?? '—' }}</td>
                                 <td>{{ date('d M Y - h:i A', $exam->starting_time) }}</td>
                                 <td>{{ date('d M Y - h:i A', $exam->ending_time) }}</td>
                                 <td>{{ $exam->total_marks }}</td>
+                                <td class="text-end text-nowrap">
+                                    <a class="eBtn btn-secondary" href="javascript:;"
+                                       onclick="rightModal('{{ route('teacher.edit.offline_exam', $exam->id) }}', '{{ get_phrase('Edit exam') }}')"><i class="bi bi-pencil"></i></a>
+                                    <a class="eBtn btn-danger" href="javascript:;"
+                                       onclick="if(confirm('{{ get_phrase('Delete this exam?') }}')) postDelete('{{ route('teacher.offline_exam.delete', $exam->id) }}')"><i class="bi bi-trash"></i></a>
+                                </td>
                             </tr>
                         @endforeach
                     </tbody>
