@@ -110,9 +110,10 @@ class CommonController extends Controller
         //Fetch Details
         $enrol_data = Enrollment::where('user_id', $id)->first();
         $student = User::find($id);
-        $class_details = Classes::find($enrol_data->class_id);
-
-        $section_details = Section::find($enrol_data->section_id);
+        // M7: a student with no enrollment row used to crash here (property on null).
+        $class_details = $enrol_data ? Classes::find($enrol_data->class_id) : null;
+        $section_details = $enrol_data ? Section::find($enrol_data->section_id) : null;
+        if (!$enrol_data) $enrol_data = new Enrollment();
 
         //End Fetch
 
@@ -197,6 +198,10 @@ class CommonController extends Controller
 
     public function markUpdate(Request $request)
     {
+        // Only school admin / teacher (and superadmin) may write marks. This route lives in an
+        // auth-only group, so without this guard any logged-in student/parent could tamper grades.
+        abort_if(!in_array(auth()->user()->role_id, [1, 2, 3]), 403);
+
         $data = $request->all();
 
         if (!empty($data['session_id'])) {
@@ -207,6 +212,7 @@ class CommonController extends Controller
 
         $data['school_id'] = auth()->user()->school_id;
         $data['session_id'] = $active_session;
+        $data['comment'] = $data['comment'] ?? ''; // column is NOT NULL; avoid 500 when omitted
 
         $query = Gradebook::where('exam_category_id', $data['exam_category_id'])
             ->where('class_id', $data['class_id'])
@@ -243,7 +249,8 @@ class CommonController extends Controller
 
     public function idWiseUserName($id='')
     {
-        $result = User::where('id', $id)->value('name');
+        // L5: scope to the caller's school so user ids can't be enumerated across tenants.
+        $result = User::where('id', $id)->where('school_id', auth()->user()->school_id)->value('name');
         return $result;
     }
 

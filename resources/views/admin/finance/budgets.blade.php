@@ -32,7 +32,7 @@
             <td class="text-end" style="color:#f04b24;">{{ $cur }} {{ number_format($exp,2) }}</td>
             <td class="text-end">
               <a class="eBtn btn-primary" href="{{ route('admin.finance.budget.show', $b->id) }}">{{ get_phrase('Open') }}</a>
-              <a class="eBtn btn-danger" href="{{ route('admin.finance.budget.delete', $b->id) }}" onclick="return confirm('{{ get_phrase('Delete this budget?') }}')">{{ get_phrase('Delete') }}</a>
+              <a class="eBtn btn-danger" href="javascript:;" onclick="if(confirm('{{ get_phrase('Delete this budget?') }}')) postDelete('{{ route('admin.finance.budget.delete', $b->id) }}')">{{ get_phrase('Delete') }}</a>
             </td>
           </tr>
         @empty

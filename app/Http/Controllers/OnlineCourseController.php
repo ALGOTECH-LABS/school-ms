@@ -79,9 +79,12 @@ class OnlineCourseController extends Controller
 
         $thumbnail = null;
         if ($request->hasFile('thumbnail')) {
+            $request->validate(['thumbnail' => 'image|mimes:jpg,jpeg,png,gif,webp|max:5120']);
             $file = $request->file('thumbnail');
             $thumbnail = time() . '_' . preg_replace('/\s+/', '_', $file->getClientOriginalName());
-            $file->move(public_path('assets/uploads/course_thumbnails/'), $thumbnail);
+            $dir = public_path('assets/uploads/course_thumbnails/');
+            if (!is_dir($dir)) @mkdir($dir, 0775, true);
+            $file->move($dir, $thumbnail);
         }
 
         $course = Course::create([
@@ -206,9 +209,12 @@ class OnlineCourseController extends Controller
         $url  = null;
         if ($request->type === 'file') {
             if ($request->hasFile('file')) {
+                $request->validate(['file' => 'file|mimes:pdf,doc,docx,ppt,pptx,xls,xlsx,txt,zip,png,jpg,jpeg,gif,mp4|max:51200']);
                 $f = $request->file('file');
                 $file = time() . '_' . preg_replace('/\s+/', '_', $f->getClientOriginalName());
-                $f->move(public_path('assets/uploads/course_materials/'), $file);
+                $dir = public_path('assets/uploads/course_materials/');
+                if (!is_dir($dir)) @mkdir($dir, 0775, true);
+                $f->move($dir, $file);
             } else {
                 return redirect()->back()->with('error', get_phrase('Please choose a file to upload.'));
             }

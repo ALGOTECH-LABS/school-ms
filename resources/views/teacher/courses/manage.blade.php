@@ -44,8 +44,7 @@
                 <a class="eBtn btn-secondary" href="javascript:;"
                    onclick="rightModal('{{ route('teacher.addons.course.lesson.create_modal', $topic->id) }}', '{{ get_phrase('Add lesson') }}')">
                    <i class="bi bi-plus"></i> {{ get_phrase('Add lesson') }}</a>
-                <a class="eBtn btn-danger" href="{{ route('teacher.addons.course.topic.delete', $topic->id) }}"
-                   onclick="return confirm('{{ get_phrase('Delete this topic and its lessons?') }}')">{{ get_phrase('Delete topic') }}</a>
+                <a class="eBtn btn-danger" href="javascript:;" onclick="if(confirm('{{ get_phrase('Delete this topic and its lessons?') }}')) postDelete('{{ route('teacher.addons.course.topic.delete', $topic->id) }}')">{{ get_phrase('Delete topic') }}</a>
               </div>
             </div>
           </summary>
@@ -58,8 +57,7 @@
                   <div class="d-flex" style="gap:6px;">
                     <a class="eBtn btn-secondary" href="javascript:;"
                        onclick="rightModal('{{ route('teacher.addons.course.lesson.edit_modal', $lesson->id) }}', '{{ get_phrase('Edit lesson') }}')">{{ get_phrase('Edit') }}</a>
-                    <a class="eBtn btn-danger" href="{{ route('teacher.addons.course.lesson.delete', $lesson->id) }}"
-                       onclick="return confirm('{{ get_phrase('Delete this lesson?') }}')">{{ get_phrase('Delete') }}</a>
+                    <a class="eBtn btn-danger" href="javascript:;" onclick="if(confirm('{{ get_phrase('Delete this lesson?') }}')) postDelete('{{ route('teacher.addons.course.lesson.delete', $lesson->id) }}')">{{ get_phrase('Delete') }}</a>
                   </div>
                 </div>
 
@@ -75,7 +73,7 @@
                           <a target="_blank" href="{{ $m->url }}">{{ $m->title }}</a>
                         @endif
                       </div>
-                      <a class="text-danger" href="{{ route('teacher.addons.course.material.delete', $m->id) }}" onclick="return confirm('{{ get_phrase('Remove material?') }}')"><i class="bi bi-x-circle"></i></a>
+                      <a class="text-danger" href="javascript:;" onclick="if(confirm('{{ get_phrase('Remove material?') }}')) postDelete('{{ route('teacher.addons.course.material.delete', $m->id) }}')"><i class="bi bi-x-circle"></i></a>
                     </div>
                   @endforeach
                 </div>

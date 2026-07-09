@@ -43,7 +43,7 @@
               <tr>
                 <td>{{ $h->name }}</td>
                 <td class="text-muted">{{ $h->description ?: '—' }}</td>
-                <td class="text-end"><a class="eBtn btn-danger" href="{{ route('admin.finance.fee_head.delete', $h->id) }}" onclick="return confirm('{{ get_phrase('Delete this fee head?') }}')">{{ get_phrase('Delete') }}</a></td>
+                <td class="text-end"><a class="eBtn btn-danger" href="javascript:;" onclick="if(confirm('{{ get_phrase('Delete this fee head?') }}')) postDelete('{{ route('admin.finance.fee_head.delete', $h->id) }}')">{{ get_phrase('Delete') }}</a></td>
               </tr>
             @empty
               <tr><td colspan="3" class="text-center text-muted">{{ get_phrase('No fee heads yet. Add Tuition, Exam, Lab, etc.') }}</td></tr>

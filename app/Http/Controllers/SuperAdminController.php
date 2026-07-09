@@ -77,7 +77,29 @@ class SuperAdminController extends Controller
 
     public function superadminDashboard()
     {
-        return view('superadmin.dashboard');
+        $today = strtotime(date('Y-m-d 00:00:00'));
+
+        $visits = [
+            'total'  => \App\Models\Visit::count(),
+            'today'  => \App\Models\Visit::where('created_at', '>=', date('Y-m-d 00:00:00'))->count(),
+            'week'   => \App\Models\Visit::where('created_at', '>=', date('Y-m-d 00:00:00', strtotime('-6 days')))->count(),
+            'unique' => \App\Models\Visit::distinct('ip_address')->count('ip_address'),
+        ];
+
+        // last 7 days daily breakdown for the mini chart
+        $daily = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $d = date('Y-m-d', strtotime("-$i days"));
+            $daily[] = [
+                'label' => date('D', strtotime($d)),
+                'date'  => date('d M', strtotime($d)),
+                'count' => \App\Models\Visit::whereBetween('created_at', [$d.' 00:00:00', $d.' 23:59:59'])->count(),
+            ];
+        }
+
+        $recentVisits = \App\Models\Visit::orderByDesc('id')->limit(8)->get();
+
+        return view('superadmin.dashboard', compact('visits', 'daily', 'recentVisits'));
     }
 
     /**
@@ -219,6 +241,12 @@ class SuperAdminController extends Controller
 
     // School Admin password change
     function admin_password(Request $request){
+
+        // M11: validate before hashing (was accepting any/empty password with no length check).
+        $request->validate([
+            'user_id'  => 'required|integer',
+            'password' => 'required|string|min:6',
+        ]);
 
         $userId = $request->input('user_id');
 

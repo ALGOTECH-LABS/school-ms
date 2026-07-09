@@ -17,6 +17,7 @@ class TeacherMiddleware
     public function handle(Request $request, Closure $next)
     {
         $user = auth()->user();
+        if (!$user) return redirect()->route('login'); // H1: avoid null deref when unauthenticated
        
         if ($user->role_id == '3' && $user->account_status != 'disable') {
             return $next($request);

@@ -81,6 +81,19 @@
 
   "use strict";
 
+  // M13: build+submit a CSRF-protected POST form to a delete/state-change URL (no drive-by GET).
+  function postDelete(url){
+    var f = document.createElement('form');
+    f.method = 'POST';
+    f.action = url;
+    var t = document.createElement('input');
+    t.type = 'hidden'; t.name = '_token';
+    t.value = (document.querySelector('meta[name=csrf-token]') || {}).content || '';
+    f.appendChild(t);
+    document.body.appendChild(f);
+    f.submit();
+  }
+
   function confirmModal(deleteUrl, callBackFunction){
     var confirmModal = new bootstrap.Modal(document.getElementById('confirmSweetAlerts'), {
       keyboard: false
@@ -89,7 +102,8 @@
 
     if(callBackFunction == 'undefined')
     {
-      $('#confirmBtn').attr('href', deleteUrl);
+      // M13: submit a CSRF-protected POST instead of GET-navigating (blocks drive-by/CSRF deletes).
+      $('#confirmBtn').attr('href', 'javascript:;').attr('onclick', "postDelete('"+deleteUrl+"')");
     }
     else if(callBackFunction == 'ajax_delete')
     {

@@ -99,7 +99,7 @@
                     @if($admin)
                       <div class="rt-actions">
                         <a href="javascript:;" onclick="rightModal('{{ route('admin.routine_edit_modal', ['id' => $r->id]) }}', '{{ get_phrase('Edit class routine') }}')"><i class="bi bi-pencil-square"></i> {{ get_phrase('Edit') }}</a>
-                        <a class="del" href="{{ route('admin.routine.delete', ['id' => $r->id]) }}" onclick="return confirm('{{ get_phrase('Delete this slot?') }}')"><i class="bi bi-trash"></i></a>
+                        <a class="del" href="javascript:;" onclick="if(confirm('{{ get_phrase('Delete this slot?') }}')) postDelete('{{ route('admin.routine.delete', ['id' => $r->id]) }}')"><i class="bi bi-trash"></i></a>
                       </div>
                     @endif
                   </div>

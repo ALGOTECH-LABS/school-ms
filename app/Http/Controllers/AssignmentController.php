@@ -90,9 +90,12 @@ class AssignmentController extends Controller
 
         $attachment = null;
         if ($request->hasFile('attachment')) {
+            $request->validate(['attachment' => 'file|mimes:pdf,doc,docx,ppt,pptx,xls,xlsx,txt,zip,png,jpg,jpeg,gif|max:51200']);
             $file = $request->file('attachment');
             $attachment = time() . '_' . preg_replace('/\s+/', '_', $file->getClientOriginalName());
-            $file->move(public_path('assets/uploads/assignments/'), $attachment);
+            $dir = public_path('assets/uploads/assignments/');
+            if (!is_dir($dir)) @mkdir($dir, 0775, true);
+            $file->move($dir, $attachment);
         }
 
         Assignment::create([
@@ -223,9 +226,12 @@ class AssignmentController extends Controller
 
         $attachment = $existing->attachment ?? null;
         if ($request->hasFile('attachment')) {
+            $request->validate(['attachment' => 'file|mimes:pdf,doc,docx,ppt,pptx,xls,xlsx,txt,zip,png,jpg,jpeg,gif|max:51200']);
             $file = $request->file('attachment');
             $attachment = time() . '_' . preg_replace('/\s+/', '_', $file->getClientOriginalName());
-            $file->move(public_path('assets/uploads/submissions/'), $attachment);
+            $dir = public_path('assets/uploads/submissions/');
+            if (!is_dir($dir)) @mkdir($dir, 0775, true);
+            $file->move($dir, $attachment);
         }
 
         AssignmentSubmission::updateOrCreate(

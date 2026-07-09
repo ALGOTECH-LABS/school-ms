@@ -37,6 +37,13 @@ class FinanceController extends Controller
         return get_school_settings($this->schoolId())->value('running_session');
     }
 
+    // H10: only accept an account id that belongs to the caller's school (else null) — blocks cross-school tagging.
+    private function ownAccountId($id)
+    {
+        if (!$id) return null;
+        return Account::where('id', $id)->where('school_id', $this->schoolId())->exists() ? $id : null;
+    }
+
     private function nextNo($prefix, $model)
     {
         $count = $model::where('school_id', $this->schoolId())->count();
@@ -201,12 +208,14 @@ class FinanceController extends Controller
 
         $classes = Classes::where('school_id', $this->schoolId())->get();
 
-        // summary
+        // summary — H11: "billed" = net owed (total + fine − discount) so Billed − Collected == Outstanding always.
         $base = Invoice::where('school_id', $this->schoolId());
+        $collected = (float)(clone $base)->sum('paid_amount');
+        $outstanding = (float)(clone $base)->sum('balance');
         $summary = [
-            'billed' => (float)(clone $base)->sum('total_amount'),
-            'collected' => (float)(clone $base)->sum('paid_amount'),
-            'outstanding' => (float)(clone $base)->sum('balance'),
+            'billed' => round($collected + $outstanding, 2),
+            'collected' => $collected,
+            'outstanding' => $outstanding,
         ];
 
         return view('admin.finance.invoices', compact('invoices', 'classes', 'class_id', 'status', 'search', 'summary'));
@@ -235,6 +244,13 @@ class FinanceController extends Controller
         if ($request->filled('fine')) $invoice->fine = (float)$request->fine;
         $invoice->save();
 
+        // M1: reject overpayment server-side (the form's max= is client-only).
+        $alreadyPaid = (float) FeePayment::where('invoice_id', $invoice->id)->sum('amount');
+        $owed = round((float)$invoice->total_amount + (float)$invoice->fine - (float)$invoice->discount - $alreadyPaid, 2);
+        if ((float)$request->amount > $owed + 0.01) {
+            return redirect()->back()->with('error', get_phrase('Payment exceeds the outstanding balance of') . ' ' . number_format($owed, 2));
+        }
+
         $payment = FeePayment::create([
             'school_id' => $this->schoolId(),
             'invoice_id' => $invoice->id,
@@ -261,7 +277,7 @@ class FinanceController extends Controller
             'txn_date' => $payment->paid_on,
             'source_type' => 'fee_payment',
             'source_id' => $payment->id,
-            'account_id' => $request->account_id ?: null,
+            'account_id' => $this->ownAccountId($request->account_id),
         ]);
 
         return redirect()->route('admin.finance.receipt', $payment->id)
@@ -522,7 +538,7 @@ class FinanceController extends Controller
     {
         $sid = $this->schoolId();
         $rows = Invoice::where('school_id', $sid)
-            ->selectRaw('class_id, COUNT(*) as invoices, SUM(total_amount) as billed, SUM(paid_amount) as collected, SUM(balance) as outstanding')
+            ->selectRaw('class_id, COUNT(*) as invoices, SUM(paid_amount + balance) as billed, SUM(paid_amount) as collected, SUM(balance) as outstanding')
             ->groupBy('class_id')->get();
         $totals = [
             'billed' => (float) $rows->sum('billed'),
@@ -600,7 +616,7 @@ class FinanceController extends Controller
             'txn_date' => $exp->expense_date,
             'source_type' => 'expense_record',
             'source_id' => $exp->id,
-            'account_id' => $request->account_id ?: null,
+            'account_id' => $this->ownAccountId($request->account_id),
         ]);
 
         return redirect()->back()->with('message', get_phrase('Expense recorded.'));
@@ -651,7 +667,7 @@ class FinanceController extends Controller
             'txn_date' => $inc->income_date,
             'source_type' => 'income_record',
             'source_id' => $inc->id,
-            'account_id' => $request->account_id ?: null,
+            'account_id' => $this->ownAccountId($request->account_id),
         ]);
 
         return redirect()->back()->with('message', get_phrase('Income recorded.'));
@@ -842,6 +858,9 @@ class FinanceController extends Controller
             'to_account_id' => 'required',
             'amount' => 'required|numeric|min:0.01',
         ]);
+        // H10: both accounts must belong to this school (blocks cross-school transfer IDOR).
+        abort_if(Account::whereIn('id', [$request->from_account_id, $request->to_account_id])
+            ->where('school_id', $this->schoolId())->count() < 2, 403);
         AccountTransfer::create([
             'school_id' => $this->schoolId(),
             'from_account_id' => $request->from_account_id,

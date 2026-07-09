@@ -20,7 +20,7 @@ Route::controller(AssignmentController::class)->group(function () {
         Route::post('teacher/assignment/store', 'teacherStore')->name('teacher.assignment.store');
         Route::get('teacher/assignment/show/{id}', 'teacherShow')->name('teacher.assignment.show');
         Route::post('teacher/assignment/grade/{submission_id}', 'teacherGrade')->name('teacher.assignment.grade');
-        Route::get('teacher/assignment/delete/{id}', 'teacherDelete')->name('teacher.assignment.delete');
+        Route::post('teacher/assignment/delete/{id}', 'teacherDelete')->name('teacher.assignment.delete');
     });
 
     // ---- Student ----
@@ -50,7 +50,7 @@ Route::controller(QuestionBankController::class)->group(function () {
         Route::post('teacher/question-bank/store', 'store')->name('teacher.qbank.store');
         Route::get('teacher/question-bank/edit-modal/{id}', 'editModal')->name('teacher.qbank.edit_modal');
         Route::post('teacher/question-bank/update/{id}', 'update')->name('teacher.qbank.update');
-        Route::get('teacher/question-bank/delete/{id}', 'delete')->name('teacher.qbank.delete');
+        Route::post('teacher/question-bank/delete/{id}', 'delete')->name('teacher.qbank.delete');
         Route::get('teacher/question-bank/generate-modal', 'generateModal')->name('teacher.qbank.generate_modal');
         Route::post('teacher/question-bank/generate', 'generateQuiz')->name('teacher.qbank.generate');
 

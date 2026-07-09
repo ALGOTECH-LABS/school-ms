@@ -2152,15 +2152,14 @@ class AdminController extends Controller
 
         $active_session = get_school_settings(auth()->user()->school_id)->value('running_session');
 
-        $file = $data['syllabus_file'];
+        $file = $data['syllabus_file'] ?? null;
+
+        // M8: keep the existing file when no new one is uploaded (was blanking it via an undefined $filename).
+        $filename = optional(Syllabus::find($id))->file;
 
         if ($file) {
             $filename = $file->getClientOriginalName();
-            $extension = $file->getClientOriginalExtension(); //Get extension of uploaded file
-
             $file->move(public_path('assets/uploads/syllabus/'), $filename);
-
-            $filepath = asset('assets/uploads/syllabus/'.$filename);
         }
 
         Syllabus::where('id', $id)->update([
@@ -2302,10 +2301,10 @@ class AdminController extends Controller
         $page_data['subject_id'] = $data['subject_id'];
         $page_data['session_id'] = $data['session_id'];
 
-        $page_data['class_name'] = Classes::find($data['class_id'])->name;
-        $page_data['section_name'] = Section::find($data['section_id'])->name;
-        $page_data['subject_name'] = Subject::find($data['subject_id'])->name;
-        $page_data['session_title'] = Session::find($data['session_id'])->session_title;
+        $page_data['class_name'] = optional(Classes::find($data['class_id']))->name;
+        $page_data['section_name'] = optional(Section::find($data['section_id']))->name;
+        $page_data['subject_name'] = optional(Subject::find($data['subject_id']))->name;
+        $page_data['session_title'] = optional(Session::find($data['session_id']))->session_title;
 
 
         $enroll_students = Enrollment::where('class_id', $page_data['class_id'])
@@ -4685,6 +4684,8 @@ class AdminController extends Controller
 
     public function allMessage(Request $request, $id)
     {
+        // C6: verify the caller participates in this thread (prevents messaging IDOR)
+        abort_if(!\DB::table("message_thrades")->where("id", $id)->where("school_id", auth()->user()->school_id)->where(function($q){ $q->where("sender_id", auth()->user()->id)->orWhere("reciver_id", auth()->user()->id); })->exists(), 403);
 
             $msg_user_details = DB::table('users')
             ->join('message_thrades', function ($join) {
@@ -4958,9 +4959,9 @@ class AdminController extends Controller
         $page_data['section_id'] = $data['section_id'];
         $page_data['session_id'] = $data['session_id'];
 
-        $page_data['class_name'] = Classes::find($data['class_id'])->name;
-        $page_data['section_name'] = Section::find($data['section_id'])->name;
-        $page_data['session_title'] = Session::find($data['session_id'])->session_title;
+        $page_data['class_name'] = optional(Classes::find($data['class_id']))->name;
+        $page_data['section_name'] = optional(Section::find($data['section_id']))->name;
+        $page_data['session_title'] = optional(Session::find($data['session_id']))->session_title;
         $admit_cards= AdmitCard::where('school_id', auth()->user()->school_id)->get();
         $classes = Classes::where('school_id', auth()->user()->school_id)->get();
         $sessions = Session::where('school_id', auth()->user()->school_id)->get();

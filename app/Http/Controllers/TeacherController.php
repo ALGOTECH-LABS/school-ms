@@ -62,8 +62,9 @@ class TeacherController extends Controller
 
         foreach ($permissions  as  $key => $distinct_class) {
 
-            $class_details = Classes::where('id', $distinct_class['class_id'])->first()->toArray();
-            $permitted_classes[$key] = $class_details;
+            $class_details = Classes::where('id', $distinct_class['class_id'])->first();
+            if (!$class_details) continue; // skip permissions pointing to a removed class
+            $permitted_classes[$key] = $class_details->toArray();
         }
 
         $classes = $permitted_classes;
@@ -81,10 +82,10 @@ class TeacherController extends Controller
         $page_data['subject_id'] = $data['subject_id'];
         $page_data['session_id'] = $data['session_id'];
 
-        $page_data['class_name'] = Classes::find($data['class_id'])->name;
-        $page_data['section_name'] = Section::find($data['section_id'])->name;
-        $page_data['subject_name'] = Subject::find($data['subject_id'])->name;
-        $page_data['session_title'] = Session::find($data['session_id'])->session_title;
+        $page_data['class_name'] = optional(Classes::find($data['class_id']))->name;
+        $page_data['section_name'] = optional(Section::find($data['section_id']))->name;
+        $page_data['subject_name'] = optional(Subject::find($data['subject_id']))->name;
+        $page_data['session_title'] = optional(Session::find($data['session_id']))->session_title;
 
         $enroll_students = Enrollment::where('class_id', $page_data['class_id'])
             ->where('section_id', $page_data['section_id'])
@@ -96,8 +97,9 @@ class TeacherController extends Controller
 
         foreach ($permissions  as  $key => $distinct_class) {
 
-            $class_details = Classes::where('id', $distinct_class['class_id'])->first()->toArray();
-            $permitted_classes[$key] = $class_details;
+            $class_details = Classes::where('id', $distinct_class['class_id'])->first();
+            if (!$class_details) continue; // skip permissions pointing to a removed class
+            $permitted_classes[$key] = $class_details->toArray();
         }
 
         $page_data['classes'] = $permitted_classes;
@@ -264,8 +266,9 @@ class TeacherController extends Controller
 
         foreach ($permissions  as  $key => $distinct_class) {
 
-            $class_details = Classes::where('id', $distinct_class['class_id'])->first()->toArray();
-            $permitted_classes[$key] = $class_details;
+            $class_details = Classes::where('id', $distinct_class['class_id'])->first();
+            if (!$class_details) continue; // skip permissions pointing to a removed class
+            $permitted_classes[$key] = $class_details->toArray();
         }
 
 
@@ -573,10 +576,11 @@ class TeacherController extends Controller
 
         foreach ($permissions  as  $key => $distinct_class) {
 
-            $class_details = Classes::where('id', $distinct_class['class_id'])->first()->toArray();
-            $classes[$key] = $class_details;
+            $class_details = Classes::where('id', $distinct_class['class_id'])->first();
+            if (!$class_details) continue;
+            $classes[$key] = $class_details->toArray();
         }
-        
+
         return view('teacher.attendance.take_attendance', ['classes' => $classes]);
     }
 
@@ -604,25 +608,21 @@ class TeacherController extends Controller
         $data['school_id'] = auth()->user()->school_id;
         $data['session_id'] = $active_session;
 
-        $check_data = DailyAttendances::where(['timestamp' => $data['timestamp'], 'class_id' => $data['class_id'], 'section_id' => $data['section_id'], 'session_id' => $active_session, 'school_id' => auth()->user()->school_id])->get();
-        if(count($check_data) > 0){
-            foreach($students as $key => $student):
-                $data['status'] = $att_data['status-'.$student];
-                $data['student_id'] = $student;
-                $attendance_id = $att_data['attendance_id'];
-
-                DailyAttendances::where('id', $attendance_id[$key])->update($data);
-
-            endforeach;
-        }else{
-            foreach($students as $student):
-                $data['status'] = $att_data['status-'.$student];
-                $data['student_id'] = $student;
-
-                DailyAttendances::create($data);
-
-            endforeach;
-        }
+        // M6: per-student updateOrCreate handles a mix of already-marked and newly-added students
+        // (the old index-aligned update on attendance_id[$key] broke for new students).
+        foreach($students as $student):
+            DailyAttendances::updateOrCreate(
+                [
+                    'timestamp'  => $data['timestamp'],
+                    'class_id'   => $data['class_id'],
+                    'section_id' => $data['section_id'],
+                    'session_id' => $active_session,
+                    'school_id'  => $data['school_id'],
+                    'student_id' => $student,
+                ],
+                ['status' => $att_data['status-'.$student]]
+            );
+        endforeach;
 
         return redirect()->back()->with('message','Student attendance updated successfully.');
     }
@@ -790,6 +790,8 @@ class TeacherController extends Controller
 
     public function allMessage(Request $request, $id)
     {
+        // C6: verify the caller participates in this thread (prevents messaging IDOR)
+        abort_if(!\DB::table("message_thrades")->where("id", $id)->where("school_id", auth()->user()->school_id)->where(function($q){ $q->where("sender_id", auth()->user()->id)->orWhere("reciver_id", auth()->user()->id); })->exists(), 403);
 
             $msg_user_details = DB::table('users')
             ->join('message_thrades', function ($join) {

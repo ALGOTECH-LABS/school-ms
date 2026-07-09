@@ -18,8 +18,8 @@ use App\Models\Subject;
                 <td>{{ $syllabus['title'] }}</td>
                 <td><a href="{{ asset('assets/uploads/syllabus') }}/{{ $syllabus['file'] }}" class="btn btn-primary btn-sm bi bi-download" download>{{ get_phrase(' Download') }}</a></td>
                 <td>
-                    <?php $subject= Subject::where('id' ,$syllabus['subject_id'])->first()->toArray(); ?>
-                    {{ $subject['name'] }}
+                    <?php $subject = Subject::find($syllabus['subject_id']); ?>
+                    {{ optional($subject)->name ?? '-' }}
                 </td>
                 <td class="text-center">
                     <div class="adminTable-action">

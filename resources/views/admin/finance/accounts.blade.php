@@ -41,7 +41,7 @@
             <div><i class="bi {{ $icons[$a->type] ?? 'bi-wallet2' }}" style="font-size:22px;color:#00955f;"></i>
               <div style="font-weight:600;">{{ $a->name }}</div>
               <small class="text-muted">{{ ucfirst($a->type) }}</small></div>
-            <a class="text-danger" href="{{ route('admin.finance.account.delete', $a->id) }}" onclick="return confirm('{{ get_phrase('Delete this account?') }}')"><i class="bi bi-x-circle"></i></a>
+            <a class="text-danger" href="javascript:;" onclick="if(confirm('{{ get_phrase('Delete this account?') }}')) postDelete('{{ route('admin.finance.account.delete', $a->id) }}')"><i class="bi bi-x-circle"></i></a>
           </div>
           <div class="mt-2" style="font-size:20px; font-weight:700; color:{{ $a->balance>=0 ? '#181c32':'#f04b24' }};">{{ $cur }} {{ number_format($a->balance,2) }}</div>
           <small class="text-muted">{{ get_phrase('Opening') }}: {{ number_format($a->opening_balance,2) }}</small>

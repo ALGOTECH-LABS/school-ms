@@ -371,6 +371,8 @@ class LibrarianController extends Controller
 
        public function allMessage(Request $request, $id)
        {
+        // C6: verify the caller participates in this thread (prevents messaging IDOR)
+        abort_if(!\DB::table("message_thrades")->where("id", $id)->where("school_id", auth()->user()->school_id)->where(function($q){ $q->where("sender_id", auth()->user()->id)->orWhere("reciver_id", auth()->user()->id); })->exists(), 403);
    
                $msg_user_details = DB::table('users')
                ->join('message_thrades', function ($join) {

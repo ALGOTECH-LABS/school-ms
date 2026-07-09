@@ -54,7 +54,7 @@
           </div>
           <div class="d-flex" style="gap:6px;">
             <a class="eBtn btn-primary" href="{{ route('admin.finance.project.show', $p->id) }}">{{ get_phrase('Open') }}</a>
-            <a class="eBtn btn-danger" href="{{ route('admin.finance.project.delete', $p->id) }}" onclick="return confirm('{{ get_phrase('Delete this project?') }}')">{{ get_phrase('Delete') }}</a>
+            <a class="eBtn btn-danger" href="javascript:;" onclick="if(confirm('{{ get_phrase('Delete this project?') }}')) postDelete('{{ route('admin.finance.project.delete', $p->id) }}')">{{ get_phrase('Delete') }}</a>
           </div>
         </div>
         <div class="d-flex flex-wrap" style="gap:24px; font-size:13px;">

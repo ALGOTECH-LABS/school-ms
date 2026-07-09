@@ -624,16 +624,19 @@ class StudentController extends Controller
 
     public function FeePayment(Request $request, $id)
     {
-
-        $fee_details = StudentFeeManager::where('id', $id)->first()->toArray();
+        // Ownership: a student may only open their own fee record (prevents invoice IDOR).
+        $fee = StudentFeeManager::where('id', $id)->where('student_id', auth()->user()->id)->first();
+        abort_if(!$fee, 403);
+        $fee_details = $fee->toArray();
         $user_info = User::where('id', $fee_details['student_id'])->first()->toArray();
         return view('student.payment.payment_gateway', ['fee_details' => $fee_details, 'user_info' => $user_info]);
     }
 
     public function studentFeeinvoice(Request $request, $id)
     {
-
-        $invoice_details = StudentFeeManager::find($id)->toArray();
+        $invoice = StudentFeeManager::where('id', $id)->where('student_id', auth()->user()->id)->first();
+        abort_if(!$invoice, 403);
+        $invoice_details = $invoice->toArray();
         $student_details = (new CommonController)->get_student_details_by_id($invoice_details['student_id'])->toArray();
 
         return view('student.fee_manager.invoice', ['invoice_details' => $invoice_details, 'student_details' => $student_details]);
@@ -643,6 +646,9 @@ class StudentController extends Controller
 
     public function offlinePaymentStudent(Request $request, $id = "")
     {
+        // Ownership: prevent a student flipping another student's invoice to "pending".
+        abort_if(!StudentFeeManager::where('id', $id)->where('student_id', auth()->user()->id)->exists(), 403);
+
         $data = $request->all();
 
         if ($data['amount'] > 0) {
@@ -650,11 +656,11 @@ class StudentController extends Controller
             $file = $data['document_image'];
 
             if ($file) {
-                $filename = $file->getClientOriginalName();
-                $extension = $file->getClientOriginalExtension(); //Get extension of uploaded file
-
-                
-                $file->move(public_path('assets/uploads/offline_payment'), $filename);
+                $request->validate(['document_image' => 'file|mimes:pdf,png,jpg,jpeg,gif|max:10240']);
+                $filename = time() . '_' . preg_replace('/\s+/', '_', $file->getClientOriginalName());
+                $dir = public_path('assets/uploads/offline_payment');
+                if (!is_dir($dir)) @mkdir($dir, 0775, true);
+                $file->move($dir, $filename);
                 $data['document_image'] = $filename;
             } else {
                 $data['document_image'] = '';
@@ -765,11 +771,10 @@ class StudentController extends Controller
         return view('student.complain.complain');
     }
     function complainUser(Request $request){
-        $data = $request->all();
-
-        $page_data['class_id'] = $data['class_id'];
-        $page_data['section_id'] = $data['section_id'];
-        $page_data['receiver'] = $data['receiver'];
+        // M12: read with defaults so a bare request doesn't undefined-index → 500.
+        $page_data['class_id'] = $request->input('class_id');
+        $page_data['section_id'] = $request->input('section_id');
+        $page_data['receiver'] = $request->input('receiver');
         return view('student.complain.complainUser', ['page_data' => $page_data]);
    }
 
@@ -786,6 +791,8 @@ class StudentController extends Controller
 
     public function allMessage(Request $request, $id)
     {
+        // C6: verify the caller participates in this thread (prevents messaging IDOR)
+        abort_if(!\DB::table("message_thrades")->where("id", $id)->where("school_id", auth()->user()->school_id)->where(function($q){ $q->where("sender_id", auth()->user()->id)->orWhere("reciver_id", auth()->user()->id); })->exists(), 403);
 
             $msg_user_details = DB::table('users')
             ->join('message_thrades', function ($join) {

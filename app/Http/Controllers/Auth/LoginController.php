@@ -39,6 +39,23 @@ class LoginController extends Controller
         $this->middleware('guest')->except('logout');
     }
 
+    /**
+     * Show the login page and record the visit (landing-page analytics for superadmin).
+     */
+    public function showLoginForm(Request $request)
+    {
+        try {
+            \App\Models\Visit::create([
+                'ip_address' => $request->ip(),
+                'user_agent' => substr((string) $request->userAgent(), 0, 255),
+                'page'       => 'login',
+                'referer'    => substr((string) $request->headers->get('referer'), 0, 255),
+            ]);
+        } catch (\Throwable $e) { /* never let analytics break the login page */ }
+
+        return view('auth.login');
+    }
+
     public function login(Request $request)
     {
         $input = $request->all();
@@ -52,6 +69,11 @@ class LoginController extends Controller
         if(school_status_check($input['email']) == 1 || user_role_check($input['email']) == 1 || user_role_check($input['email']) == 2) {
 
             if (auth()->attempt(array('email' => $input['email'], 'password' => $input['password']))) {
+                // H2: block disabled accounts at login (role middleware alone left auth-only routes reachable).
+                if (auth()->user()->account_status == 'disable') {
+                    auth()->logout();
+                    return redirect()->route('login')->with('error', 'Your account is disabled. Please contact your administrator.');
+                }
                 if (auth()->user()->role_id == 1) {
 
                     session(['superadmin_login' => 1]);

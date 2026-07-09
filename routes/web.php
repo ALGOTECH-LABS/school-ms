@@ -28,7 +28,9 @@ use App\Http\Controllers\Updater;
 
 
 // Clear application cache:
+// H3: gate cache-clear behind an authenticated superadmin (was public → anon DoS).
 Route::get('/clear-cache', function() {
+    abort_unless(auth()->check() && auth()->user()->role_id == 1, 403);
     Artisan::call('cache:clear');
 
     //Artisan::call('route:cache');
@@ -43,8 +45,8 @@ Route::get('/clear-cache', function() {
 })->name('clear.cache');
 
 
-//Auth routes are here
-Auth::routes();
+// H4: this is an admin-provisioned system — disable public self-registration (was creating orphan users).
+Auth::routes(['register' => false]);
 
 
 //Landing page routes are here
@@ -105,7 +107,7 @@ Route::controller(SuperAdminController::class)->middleware('auth','superAdmin')-
     Route::post('superadmin/package_add', 'packageCreate')->name('superadmin.package.create');
     Route::get('superadmin/package/{id}', 'editPackage')->name('superadmin.edit.package');
     Route::post('superadmin/package/{id}', 'packageUpdate')->name('superadmin.package.update');
-    Route::get('superadmin/package/delete/{id}', 'packageDelete')->name('superadmin.package.delete');
+    Route::post('superadmin/package/delete/{id}', 'packageDelete')->name('superadmin.package.delete');
 
 
     //Subscription routes
@@ -114,7 +116,7 @@ Route::controller(SuperAdminController::class)->middleware('auth','superAdmin')-
     Route::get('superadmin/subscription/pending', 'subscriptionPendingPayment')->name('superadmin.subscription.pending');
     Route::post('superadmin/subscription/pending/filter', 'subscriptionFilterPendingPayment')->name('superadmin.subscription.filter_pending');
     Route::get('superadmin/subscription/{status}/{id}', 'subscriptionPaymentStatus')->name('superadmin.subscription.status');
-    Route::get('superadmin/subscription/delete/{id}', 'subscriptionPaymentDelete')->name('superadmin.subscription.delete');
+    Route::post('superadmin/subscription/delete/{id}', 'subscriptionPaymentDelete')->name('superadmin.subscription.delete');
     Route::get('superadmin/subscription/expired_subcription', 'subscriptionExpired')->name('superadmin.subscription.expired_subcription');
 
 
@@ -122,7 +124,7 @@ Route::controller(SuperAdminController::class)->middleware('auth','superAdmin')-
     Route::get('superadmin/addon/list', 'addonList')->name('superadmin.addon.list');
     Route::get('superadmin/addon/install', 'addonInstall')->name('superadmin.addon.install');
     Route::get('superadmin/addon/status/{id}', 'addonStatus')->name('superadmin.addon.status');
-    Route::get('superadmin/addon/delete/{id}', 'addonDelete')->name('superadmin.addon.delete');
+    Route::post('superadmin/addon/delete/{id}', 'addonDelete')->name('superadmin.addon.delete');
 
 
     //System settings routes
@@ -132,7 +134,7 @@ Route::controller(SuperAdminController::class)->middleware('auth','superAdmin')-
     //Frontend features 
     Route::get('superadmin/settings/frontendFeaturesCreate', 'frontendFeaturesCreate')->name('superadmin.settings.frontendFeaturesCreate');
     Route::post('superadmin/system/frontendFeaturesadd', 'frontendFeaturesadd')->name('superadmin.system.frontendFeaturesadd');
-    Route::get('superadmin/system/delete/{id}', 'frontFeaDlt')->name('superadmin.system.frontendFeaturesDlt');
+    Route::post('superadmin/system/delete/{id}', 'frontFeaDlt')->name('superadmin.system.frontendFeaturesDlt');
     Route::post('superadmin/system/update/{id}', 'frontFeaUpdate')->name('superadmin.system.frontFeaUpdate');
 
 
@@ -146,14 +148,14 @@ Route::controller(SuperAdminController::class)->middleware('auth','superAdmin')-
     Route::post('superadmin/settings/faq_create', 'faqCreate')->name('superadmin.faq_create');
     Route::get('superadmin/settings/faq_edit/{id}', 'faqEdit')->name('superadmin.faq_edit');
     Route::post('superadmin/settings/faq_update/{id}', 'faqUpdate')->name('superadmin.faq_update');
-    Route::get('superadmin/settings/faq/delete/{id}', 'faqDelete')->name('superadmin.faq.delete');
+    Route::post('superadmin/settings/faq/delete/{id}', 'faqDelete')->name('superadmin.faq.delete');
 
 
     //Language settings routes
     Route::get('superadmin/settings/language/{language?}', 'manageLanguage')->name('superadmin.language.manage');
     Route::post('superadmin/settings/language/add', 'addLanguage')->name('superadmin.language.add');
     Route::post('superadmin/settings/language/{language?}', 'updatedPhrase')->name('superadmin.language.update_phrase');
-    Route::get('superadmin/settings/language/delete/{name}', 'deleteLanguage')->name('superadmin.language.delete');
+    Route::post('superadmin/settings/language/delete/{name}', 'deleteLanguage')->name('superadmin.language.delete');
 
 
     //Smtp settings routes
@@ -212,7 +214,7 @@ Route::controller(AdminController::class)->middleware('admin','auth')->group(fun
     Route::post('admin/admin', 'adminCreate')->name('admin.create');
     Route::get('admin/admin/edit_modal/{id}', 'editModal')->name('admin.open_edit_modal');
     Route::post('admin/admin/{id}', 'adminUpdate')->name('admin.update');
-    Route::get('admin/admin/delete/{id}', 'adminDelete')->name('admin.admin.delete');
+    Route::post('admin/admin/delete/{id}', 'adminDelete')->name('admin.admin.delete');
     Route::get('admin/admin/admin_profile/{id}', 'adminProfile')->name('admin.admin.admin_profile');
     Route::any('admin/user_password/', 'school_user_password')->name('admin.user_password');
     Route::get('admin/admin/menu_permission/{id}', 'menuSettingsView')->name('admin.admin.menu_permission');
@@ -238,7 +240,7 @@ Route::controller(AdminController::class)->middleware('admin','auth')->group(fun
     Route::post('admin/teacher', 'adminTeacherCreate')->name('admin.teacher.create');
     Route::get('admin/teacher/edit/{id}', 'teacherEditModal')->name('admin.teacher_edit_modal');
     Route::post('admin/teacher/{id}', 'teacherUpdate')->name('admin.teacher.update');
-    Route::get('admin/teacher/delete/{id}', 'teacherDelete')->name('admin.teacher.delete');
+    Route::post('admin/teacher/delete/{id}', 'teacherDelete')->name('admin.teacher.delete');
     Route::get('admin/teacher/teacher_profile/{id}', 'teacherProfile')->name('admin.teacher.teacher_profile');
 
 
@@ -248,7 +250,7 @@ Route::controller(AdminController::class)->middleware('admin','auth')->group(fun
     Route::post('admin/accountant', 'accountantCreate')->name('admin.accountant.create');
     Route::get('admin/accountant/edit/{id}', 'accountantEditModal')->name('admin.accountant_edit_modal');
     Route::post('admin/accountant/{id}', 'accountantUpdate')->name('admin.accountant.update');
-    Route::get('admin/accountant/delete/{id}', 'accountantDelete')->name('admin.accountant.delete');
+    Route::post('admin/accountant/delete/{id}', 'accountantDelete')->name('admin.accountant.delete');
     Route::get('admin/accountant/accountant_profile/{id}', 'accountantProfile')->name('admin.accountant.accountant_profile');
 
 
@@ -258,7 +260,7 @@ Route::controller(AdminController::class)->middleware('admin','auth')->group(fun
     Route::post('admin/librarian', 'librarianCreate')->name('admin.librarian.create');
     Route::get('admin/librarian/edit/{id}', 'librarianEditModal')->name('admin.librarian_edit_modal');
     Route::post('admin/librarian/{id}', 'librarianUpdate')->name('admin.librarian.update');
-    Route::get('admin/librarian/delete/{id}', 'librarianDelete')->name('admin.librarian.delete');
+    Route::post('admin/librarian/delete/{id}', 'librarianDelete')->name('admin.librarian.delete');
     Route::get('admin/librarian/librarian_profile/{id}', 'librarianProfile')->name('admin.librarian.librarian_profile');
 
 
@@ -268,7 +270,7 @@ Route::controller(AdminController::class)->middleware('admin','auth')->group(fun
     Route::get('admin/parent/create', 'createParent')->name('admin.parent.create_form');
     Route::get('admin/parent/edit/{id}', 'parentEditModal')->name('admin.parent_edit_modal');
     Route::post('admin/parent/{id}', 'parentUpdate')->name('admin.parent.update');
-    Route::get('admin/parent/delete/{id}', 'parentDelete')->name('admin.parent.delete');
+    Route::post('admin/parent/delete/{id}', 'parentDelete')->name('admin.parent.delete');
     Route::get('admin/parent/parent_profile/{id}', 'parentProfile')->name('admin.parent.parent_profile');
 
     //Student users route
@@ -278,7 +280,7 @@ Route::controller(AdminController::class)->middleware('admin','auth')->group(fun
     Route::get('admin/student/id_card/{id}', 'studentIdCardGenerate')->name('admin.student.id_card');
     Route::get('admin/student/edit/{id}', 'studentEditModal')->name('admin.student_edit_modal');
     Route::post('admin/student/{id}', 'studentUpdate')->name('admin.student.update');
-    Route::get('admin/student/delete/{id}', 'studentDelete')->name('admin.student.delete');
+    Route::post('admin/student/delete/{id}', 'studentDelete')->name('admin.student.delete');
     Route::get('admin/student/student_profile/{id}', 'studentProfile')->name('admin.student.student_profile');
 
     //User Account Status
@@ -308,7 +310,7 @@ Route::controller(AdminController::class)->middleware('admin','auth')->group(fun
     Route::post('admin/exam_category', 'examCategoryCreate')->name('admin.create.exam_category');
     Route::get('admin/exam_category/{id}', 'editExamCategory')->name('admin.edit.exam_category');
     Route::post('admin/exam_category/{id}', 'examCategoryUpdate')->name('admin.exam_category.update');
-    Route::get('admin/exam_category/delete/{id}', 'examCategoryDelete')->name('admin.exam_category.delete');
+    Route::post('admin/exam_category/delete/{id}', 'examCategoryDelete')->name('admin.exam_category.delete');
 
 
     //Exam routes
@@ -318,7 +320,7 @@ Route::controller(AdminController::class)->middleware('admin','auth')->group(fun
     Route::post('admin/offline_exam', 'offlineExamCreate')->name('admin.create.offline_exam');
     Route::get('admin/offline_exam/{id}', 'editOfflineExam')->name('admin.edit.offline_exam');
     Route::post('admin/offline_exam/{id}', 'offlineExamUpdate')->name('admin.offline_exam.update');
-    Route::get('admin/offline_exam/delete/{id}', 'offlineExamDelete')->name('admin.offline_exam.delete');
+    Route::post('admin/offline_exam/delete/{id}', 'offlineExamDelete')->name('admin.offline_exam.delete');
     Route::get('admin/exam_list_by_class/{id}', 'classWiseOfflineExam')->name('admin.class_wise_exam_list');
 
 
@@ -328,7 +330,7 @@ Route::controller(AdminController::class)->middleware('admin','auth')->group(fun
     Route::post('admin/admit-card-upload', 'admitCardUpload')->name('admin.examination.admit_card_upload');
     Route::get('admin/admit-card-edit/{id}', 'admitCardEdit')->name('admin.examination.admit_card_edit');
     Route::post('admin/admit-card-update/{id}', 'admitCardUpdate')->name('admin.examination.admit_card_update');
-    Route::get('admin/admit-card-delete/{id}', 'admitCardDelete')->name('admin.examination.admit_card_delete');
+    Route::post('admin/admit-card-delete/{id}', 'admitCardDelete')->name('admin.examination.admit_card_delete');
 
     Route::get('admin/print-admit-card', 'admitCardPrint')->name('admin.examination.admit_card_print');
     Route::get('admin/admitCardFilter', 'admitCardFilter')->name('admin.examination.admitCardFilter');
@@ -350,7 +352,7 @@ Route::controller(AdminController::class)->middleware('admin','auth')->group(fun
     Route::get('admin/routine/list', 'routineList')->name('admin.routine.routine_list');
     Route::get('admin/routine/edit/{id}', 'routineEditModal')->name('admin.routine_edit_modal');
     Route::post('admin/routine/{id}', 'routineUpdate')->name('admin.routine.update');
-    Route::get('admin/routine/delete/{id}', 'routineDelete')->name('admin.routine.delete');
+    Route::post('admin/routine/delete/{id}', 'routineDelete')->name('admin.routine.delete');
 
 
     //Syllabus routes
@@ -360,7 +362,7 @@ Route::controller(AdminController::class)->middleware('admin','auth')->group(fun
     Route::get('admin/syllabus/list', 'syllabusList')->name('admin.syllabus.syllabus_list');
     Route::get('admin/syllabus/edit/{id}', 'syllabusEditModal')->name('admin.syllabus_edit_modal');
     Route::post('admin/syllabus/{id}', 'syllabusUpdate')->name('admin.syllabus.update');
-    Route::get('admin/syllabus/delete/{id}', 'syllabusDelete')->name('admin.syllabus.delete');
+    Route::post('admin/syllabus/delete/{id}', 'syllabusDelete')->name('admin.syllabus.delete');
 
 
     //Gradebooks routes
@@ -385,7 +387,7 @@ Route::controller(AdminController::class)->middleware('admin','auth')->group(fun
     Route::post('admin/grade', 'gradeCreate')->name('admin.create.grade');
     Route::get('admin/grade/{id}', 'editGrade')->name('admin.edit.grade');
     Route::post('admin/grade/{id}', 'gradeUpdate')->name('admin.grade.update');
-    Route::get('admin/grade/delete/{id}', 'gradeDelete')->name('admin.grade.delete');
+    Route::post('admin/grade/delete/{id}', 'gradeDelete')->name('admin.grade.delete');
 
 
     //promotion routes
@@ -400,7 +402,7 @@ Route::controller(AdminController::class)->middleware('admin','auth')->group(fun
     Route::post('admin/subject', 'subjectCreate')->name('admin.create.subject');
     Route::get('admin/subject/{id}', 'editSubject')->name('admin.edit.subject');
     Route::post('admin/subject/{id}', 'subjectUpdate')->name('admin.subject.update');
-    Route::get('admin/subject/delete/{id}', 'subjectDelete')->name('admin.subject.delete');
+    Route::post('admin/subject/delete/{id}', 'subjectDelete')->name('admin.subject.delete');
 
 
     //Depertment routes
@@ -409,7 +411,7 @@ Route::controller(AdminController::class)->middleware('admin','auth')->group(fun
     Route::post('admin/department', 'departmentCreate')->name('admin.create.department');
     Route::get('admin/department/{id}', 'editDepartment')->name('admin.edit.department');
     Route::post('admin/department/{id}', 'departmentUpdate')->name('admin.department.update');
-    Route::get('admin/department/delete/{id}', 'departmentDelete')->name('admin.department.delete');
+    Route::post('admin/department/delete/{id}', 'departmentDelete')->name('admin.department.delete');
 
 
     //Class room routes
@@ -418,7 +420,7 @@ Route::controller(AdminController::class)->middleware('admin','auth')->group(fun
     Route::post('admin/class_room', 'classRoomCreate')->name('admin.create.class_room');
     Route::get('admin/class_room/{id}', 'editClassRoom')->name('admin.edit.class_room');
     Route::post('admin/class_room/{id}', 'classRoomUpdate')->name('admin.class_room.update');
-    Route::get('admin/class_room/delete/{id}', 'classRoomDelete')->name('admin.class_room.delete');
+    Route::post('admin/class_room/delete/{id}', 'classRoomDelete')->name('admin.class_room.delete');
 
 
     //Class list routes
@@ -429,11 +431,11 @@ Route::controller(AdminController::class)->middleware('admin','auth')->group(fun
     Route::post('admin/class/{id}', 'classUpdate')->name('admin.class.update');
     Route::get('admin/class/section/{id}', 'editSection')->name('admin.edit.section');
     Route::post('admin/class/sections/{id}', 'sectionUpdate')->name('admin.section.update');
-    Route::get('admin/class/delete/{id}', 'classDelete')->name('admin.class.delete');
+    Route::post('admin/class/delete/{id}', 'classDelete')->name('admin.class.delete');
 
 
     //Accounting route
-    Route::get('admin/student_fee/delete/{id}/{status}', 'update_offline_payment')->name('admin.update_offline_payment');
+    Route::post('admin/student_fee/delete/{id}/{status}', 'update_offline_payment')->name('admin.update_offline_payment');
     Route::get('admin/subscription/payment/success/{user_data}/{response}', 'admin_subscription_fee_success_payment')->name('admin_subscription_fee_success_payment');
     Route::get('admin/subscription/payment/fail/{user_data}/{response}', 'admin_subscription_fee_fail_payment')->name('admin_subscription_fee_fail_payment');
     Route::get('admin/subscription/payment/trail', 'admin_free_subcription')->name('admin_free_subcription');
@@ -448,7 +450,7 @@ Route::controller(AdminController::class)->middleware('admin','auth')->group(fun
     Route::post('admin/fee_manager/{value}', 'feeManagerCreate')->name('admin.create.fee_manager');
     Route::get('admin/fee_manager/{id}', 'editFeeManager')->name('admin.edit.fee_manager');
     Route::post('admin/fee_manager_list/{id}', 'feeManagerUpdate')->name('admin.fee_manager.update');
-    Route::get('admin/student_fee/delete/{id}', 'studentFeeDelete')->name('admin.fee_manager.delete');
+    Route::post('admin/student_fee/delete/{id}', 'studentFeeDelete')->name('admin.fee_manager.delete');
     Route::get('admin/student_fee/invoice/{id}', 'studentFeeinvoice')->name('admin.studentFeeinvoice');
     Route::get('admin/offline_payment/pending', 'offline_payment_pending')->name('admin.offline_payment_pending')->middleware('admin_permission');
 
@@ -459,7 +461,7 @@ Route::controller(AdminController::class)->middleware('admin','auth')->group(fun
     Route::post('admin/expenses/added', 'expenseCreate')->name('admin.create.expenses');
     Route::get('admin/expenses/{id}', 'editExpense')->name('admin.edit.expenses');
     Route::post('admin/expenses/{id}', 'expenseUpdate')->name('admin.expenses.update');
-    Route::get('admin/expenses/delete/{id}', 'expenseDelete')->name('admin.expense.delete');
+    Route::post('admin/expenses/delete/{id}', 'expenseDelete')->name('admin.expense.delete');
 
 
     //Expense category routes
@@ -468,7 +470,7 @@ Route::controller(AdminController::class)->middleware('admin','auth')->group(fun
     Route::post('admin/expense_category/added', 'expenseCategoryCreate')->name('admin.create.expense_category');
     Route::get('admin/expense_category/{id}', 'editExpenseCategory')->name('admin.edit.expense_category');
     Route::post('admin/expense_category/{id}', 'expenseCategoryUpdate')->name('admin.expense_category.update');
-    Route::get('admin/expense_category/delete/{id}', 'expenseCategoryDelete')->name('admin.expense.category_delete');
+    Route::post('admin/expense_category/delete/{id}', 'expenseCategoryDelete')->name('admin.expense.category_delete');
 
 
     //Book routes
@@ -477,7 +479,7 @@ Route::controller(AdminController::class)->middleware('admin','auth')->group(fun
     Route::post('admin/book/added', 'bookCreate')->name('admin.create.book');
     Route::get('admin/book/{id}', 'editBook')->name('admin.edit.book');
     Route::post('admin/book/{id}', 'bookUpdate')->name('admin.book.update');
-    Route::get('admin/book/delete/{id}', 'bookDelete')->name('admin.book.delete');
+    Route::post('admin/book/delete/{id}', 'bookDelete')->name('admin.book.delete');
 
 
     //Issue book routes
@@ -487,7 +489,7 @@ Route::controller(AdminController::class)->middleware('admin','auth')->group(fun
     Route::get('admin/book_issue/{id}', 'editBookIssue')->name('admin.edit.book_issue');
     Route::post('admin/book_issue/{id}', 'bookIssueUpdate')->name('admin.book_issue.update');
     Route::get('admin/book_issue/return/{id}', 'bookIssueReturn')->name('admin.book_issue.return');
-    Route::get('admin/book_issue/delete/{id}', 'bookIssueDelete')->name('admin.book_issue.delete');
+    Route::post('admin/book_issue/delete/{id}', 'bookIssueDelete')->name('admin.book_issue.delete');
 
 
     //Noticeboard routes
@@ -496,7 +498,7 @@ Route::controller(AdminController::class)->middleware('admin','auth')->group(fun
     Route::post('admin/noticeboard/added', 'noticeboardCreate')->name('admin.create.noticeboard');
     Route::get('admin/noticeboard/{id}', 'editNoticeboard')->name('admin.edit.noticeboard');
     Route::post('admin/noticeboard/{id}', 'noticeboardUpdate')->name('admin.noticeboard.update');
-    Route::get('admin/noticeboard/delete/{id}', 'noticeboardDelete')->name('admin.noticeboard.delete');
+    Route::post('admin/noticeboard/delete/{id}', 'noticeboardDelete')->name('admin.noticeboard.delete');
 
 
     //Subscription routes
@@ -511,7 +513,7 @@ Route::controller(AdminController::class)->middleware('admin','auth')->group(fun
     Route::post('admin/events/added', 'eventCreate')->name('admin.create.event');
     Route::get('admin/events/{id}', 'editEvent')->name('admin.edit.event');
     Route::post('admin/events/{id}', 'eventUpdate')->name('admin.event.update');
-    Route::get('admin/events/delete/{id}', 'eventDelete')->name('admin.events.delete');
+    Route::post('admin/events/delete/{id}', 'eventDelete')->name('admin.events.delete');
 
     //Complain List routes
     Route::get('admin/complain/complainList', 'complainList')->name('admin.complain.complainList');
@@ -530,7 +532,7 @@ Route::controller(AdminController::class)->middleware('admin','auth')->group(fun
     Route::post('admin/session_add', 'sessionCreate')->name('admin.session_manager.create');
     Route::get('admin/session_manager/{id}', 'editSession')->name('admin.edit.session');
     Route::post('admin/session_manager/{id}', 'sessionUpdate')->name('admin.session.update');
-    Route::get('admin/session_manager/delete/{id}', 'sessionDelete')->name('admin.session.delete');
+    Route::post('admin/session_manager/delete/{id}', 'sessionDelete')->name('admin.session.delete');
 
     //Profile
     Route::get('admin/profile', 'profile')->name('admin.profile')->middleware('admin_permission');
@@ -547,7 +549,7 @@ Route::controller(AdminController::class)->middleware('admin','auth')->group(fun
     Route::post('admin/feedback-upload', 'upload_feedback')->name('admin.feedback.upload_feedback');
     Route::get('admin/feedback-edit/{id}', 'edit_feedback')->name('admin.feedback.edit_feedback');
     Route::post('admin/feedback-update/{id}', 'update_feedback')->name('admin.feedback.update_feedback');
-    Route::get('admin/feedback-delete/{id}', 'delete_feedback')->name('admin.feedback.delete_feedback');
+    Route::post('admin/feedback-delete/{id}', 'delete_feedback')->name('admin.feedback.delete_feedback');
 
     // Message
     Route::get('admin/message/all-message/{id}', 'allMessage')->name('admin.message.all_message');
@@ -608,7 +610,7 @@ Route::controller(TeacherController::class)->middleware('teacher','auth')->group
     Route::get('teacher/syllabus_details', 'syllabus_details')->name('teacher.syllabus_details');
     Route::get('teacher/create/syllabus/modal', 'show_syllabus_modal')->name('teacher.show_syllabus_modal');
     Route::post('teacher/create/syllabus/modal/post', 'show_syllabus_modal_post')->name('teacher.show_syllabus_modal_post');
-    Route::get('teacher/syllabus/delete/{id}', 'syllabusDelete')->name('teacher.syllabus.delete');
+    Route::post('teacher/syllabus/delete/{id}', 'syllabusDelete')->name('teacher.syllabus.delete');
 
 
     //Noticeboard routes
@@ -632,7 +634,7 @@ Route::controller(TeacherController::class)->middleware('teacher','auth')->group
     Route::post('teacher/feedback-upload', 'upload_feedback')->name('teacher.feedback.upload_feedback');
     Route::get('teacher/feedback-edit/{id}', 'edit_feedback')->name('teacher.feedback.edit_feedback');
     Route::post('teacher/feedback-update/{id}', 'update_feedback')->name('teacher.feedback.update_feedback');
-    Route::get('teacher/feedback-delete/{id}', 'delete_feedback')->name('teacher.feedback.delete_feedback');
+    Route::post('teacher/feedback-delete/{id}', 'delete_feedback')->name('teacher.feedback.delete_feedback');
 
     // Message
     Route::get('teacher/message/all-message/{id}', 'allMessage')->name('teacher.message.all_message');
@@ -846,13 +848,13 @@ Route::controller(AccountantController::class)->middleware('accountant','auth')-
     Route::post('accountant/fee_manager/{value}', 'feeManagerCreate')->name('accountant.create.fee_manager');
     Route::get('accountant/fee_manager/{id}', 'editFeeManager')->name('accountant.edit.fee_manager');
     Route::post('accountant/fee_manager_list/{id}', 'feeManagerUpdate')->name('accountant.fee_manager.update');
-    Route::get('accountant/student_fee/delete/{id}', 'studentFeeDelete')->name('accountant.fee_manager.delete');
+    Route::post('accountant/student_fee/delete/{id}', 'studentFeeDelete')->name('accountant.fee_manager.delete');
     Route::get('accountant/student_fee/invoice/{id}', 'studentFeeinvoice')->name('accountant.studentFeeinvoice');
 
 
     //Offline payment routes
     Route::get('accountant/offline_payment/pending', 'offline_payment_pending')->name('accountant.offline_payment_pending');
-    Route::get('accountant/student_fee/delete/{id}/{status}', 'update_offline_payment')->name('accountant.update_offline_payment');
+    Route::post('accountant/student_fee/delete/{id}/{status}', 'update_offline_payment')->name('accountant.update_offline_payment');
 
     //Expenses routes
     Route::get('accountant/expenses/list', 'expenseList')->name('accountant.expense.list');
@@ -860,7 +862,7 @@ Route::controller(AccountantController::class)->middleware('accountant','auth')-
     Route::post('accountant/expenses/added', 'expenseCreate')->name('accountant.create.expenses');
     Route::get('accountant/expenses/{id}', 'editExpense')->name('accountant.edit.expenses');
     Route::post('accountant/expenses/{id}', 'expenseUpdate')->name('accountant.expenses.update');
-    Route::get('accountant/expenses/delete/{id}', 'expenseDelete')->name('accountant.expense.delete');
+    Route::post('accountant/expenses/delete/{id}', 'expenseDelete')->name('accountant.expense.delete');
 
     //Expenses category routes
     Route::get('accountant/expense_category/list', 'expenseCategoryList')->name('accountant.expense.category_list');
@@ -868,7 +870,7 @@ Route::controller(AccountantController::class)->middleware('accountant','auth')-
     Route::post('accountant/expense_category/added', 'expenseCategoryCreate')->name('accountant.create.expense_category');
     Route::get('accountant/expense_category/{id}', 'editExpenseCategory')->name('accountant.edit.expense_category');
     Route::post('accountant/expense_category/{id}', 'expenseCategoryUpdate')->name('accountant.expense_category.update');
-    Route::get('accountant/expense_category/delete/{id}', 'expenseCategoryDelete')->name('accountant.expense.category_delete');
+    Route::post('accountant/expense_category/delete/{id}', 'expenseCategoryDelete')->name('accountant.expense.category_delete');
 
 
     //Noticeboard routes
@@ -910,7 +912,7 @@ Route::controller(LibrarianController::class)->middleware('librarian','auth')->g
     Route::post('librarian/book/added', 'bookCreate')->name('librarian.create.book');
     Route::get('librarian/book/{id}', 'editBook')->name('librarian.edit.book');
     Route::post('librarian/book/{id}', 'bookUpdate')->name('librarian.book.update');
-    Route::get('librarian/book/delete/{id}', 'bookDelete')->name('librarian.book.delete');
+    Route::post('librarian/book/delete/{id}', 'bookDelete')->name('librarian.book.delete');
 
     //Book issue routes
     Route::get('librarian/book_issue', 'bookIssueList')->name('librarian.book_issue.list');
@@ -919,7 +921,7 @@ Route::controller(LibrarianController::class)->middleware('librarian','auth')->g
     Route::get('librarian/book_issue/{id}', 'editBookIssue')->name('librarian.edit.book_issue');
     Route::post('librarian/book_issue/{id}', 'bookIssueUpdate')->name('librarian.book_issue.update');
     Route::get('librarian/book_issue/return/{id}', 'bookIssueReturn')->name('librarian.book_issue.return');
-    Route::get('librarian/book_issue/delete/{id}', 'bookIssueDelete')->name('librarian.book_issue.delete');
+    Route::post('librarian/book_issue/delete/{id}', 'bookIssueDelete')->name('librarian.book_issue.delete');
 
 
     //Noticeboard routes
@@ -965,19 +967,19 @@ Route::controller(FinanceController::class)->group(function () {
     Route::middleware(['admin_accountant', 'auth'])->group(function () {
         Route::get('admin/finance/fee-heads', 'feeHeads')->name('admin.finance.fee_heads');
         Route::post('admin/finance/fee-heads/store', 'feeHeadStore')->name('admin.finance.fee_head.store');
-        Route::get('admin/finance/fee-heads/delete/{id}', 'feeHeadDelete')->name('admin.finance.fee_head.delete');
+        Route::post('admin/finance/fee-heads/delete/{id}', 'feeHeadDelete')->name('admin.finance.fee_head.delete');
 
         Route::get('admin/finance/structures', 'structures')->name('admin.finance.structures');
         Route::get('admin/finance/structure/create', 'structureCreate')->name('admin.finance.structure.create');
         Route::post('admin/finance/structure/store', 'structureStore')->name('admin.finance.structure.store');
         Route::get('admin/finance/structure/show/{id}', 'structureShow')->name('admin.finance.structure.show');
-        Route::get('admin/finance/structure/delete/{id}', 'structureDelete')->name('admin.finance.structure.delete');
+        Route::post('admin/finance/structure/delete/{id}', 'structureDelete')->name('admin.finance.structure.delete');
         Route::get('admin/finance/structure/generate/{id}', 'generateInvoices')->name('admin.finance.structure.generate');
 
         Route::get('admin/finance/invoices', 'invoices')->name('admin.finance.invoices');
         Route::get('admin/finance/invoice/show/{id}', 'invoiceShow')->name('admin.finance.invoice.show');
         Route::post('admin/finance/invoice/pay/{id}', 'recordPayment')->name('admin.finance.invoice.pay');
-        Route::get('admin/finance/invoice/delete/{id}', 'invoiceDelete')->name('admin.finance.invoice.delete');
+        Route::post('admin/finance/invoice/delete/{id}', 'invoiceDelete')->name('admin.finance.invoice.delete');
         Route::get('admin/finance/receipt/{payment_id}', 'receipt')->name('admin.finance.receipt');
         Route::get('admin/finance/statement/{student_id}', 'studentStatement')->name('admin.finance.statement');
 
@@ -986,14 +988,14 @@ Route::controller(FinanceController::class)->group(function () {
         Route::get('admin/finance/budget/create', 'budgetCreate')->name('admin.finance.budget.create');
         Route::post('admin/finance/budget/store', 'budgetStore')->name('admin.finance.budget.store');
         Route::get('admin/finance/budget/show/{id}', 'budgetShow')->name('admin.finance.budget.show');
-        Route::get('admin/finance/budget/delete/{id}', 'budgetDelete')->name('admin.finance.budget.delete');
+        Route::post('admin/finance/budget/delete/{id}', 'budgetDelete')->name('admin.finance.budget.delete');
 
         // school projects
         Route::get('admin/finance/projects', 'projects')->name('admin.finance.projects');
         Route::post('admin/finance/project/store', 'projectStore')->name('admin.finance.project.store');
         Route::get('admin/finance/project/show/{id}', 'projectShow')->name('admin.finance.project.show');
         Route::post('admin/finance/project/txn/{id}', 'projectTxnStore')->name('admin.finance.project.txn');
-        Route::get('admin/finance/project/delete/{id}', 'projectDelete')->name('admin.finance.project.delete');
+        Route::post('admin/finance/project/delete/{id}', 'projectDelete')->name('admin.finance.project.delete');
 
         // dashboard + reports
         Route::get('admin/finance/dashboard', 'dashboard')->name('admin.finance.dashboard');
@@ -1005,10 +1007,10 @@ Route::controller(FinanceController::class)->group(function () {
         // expenses + other income
         Route::get('admin/finance/expenses', 'expenses')->name('admin.finance.expenses');
         Route::post('admin/finance/expense/store', 'expenseStore')->name('admin.finance.expense.store');
-        Route::get('admin/finance/expense/delete/{id}', 'expenseDelete')->name('admin.finance.expense.delete');
+        Route::post('admin/finance/expense/delete/{id}', 'expenseDelete')->name('admin.finance.expense.delete');
         Route::get('admin/finance/incomes', 'incomes')->name('admin.finance.incomes');
         Route::post('admin/finance/income/store', 'incomeStore')->name('admin.finance.income.store');
-        Route::get('admin/finance/income/delete/{id}', 'incomeDelete')->name('admin.finance.income.delete');
+        Route::post('admin/finance/income/delete/{id}', 'incomeDelete')->name('admin.finance.income.delete');
 
         // payroll
         Route::get('admin/finance/payroll', 'payroll')->name('admin.finance.payroll');
@@ -1018,15 +1020,15 @@ Route::controller(FinanceController::class)->group(function () {
         Route::post('admin/finance/payslips/generate', 'generatePayslips')->name('admin.finance.payslips.generate');
         Route::get('admin/finance/payslip/pay/{id}', 'payslipPay')->name('admin.finance.payslip.pay');
         Route::get('admin/finance/payslip/show/{id}', 'payslipShow')->name('admin.finance.payslip.show');
-        Route::get('admin/finance/payslip/delete/{id}', 'payslipDelete')->name('admin.finance.payslip.delete');
+        Route::post('admin/finance/payslip/delete/{id}', 'payslipDelete')->name('admin.finance.payslip.delete');
 
         // accounts + transfers
         Route::get('admin/finance/accounts', 'accounts')->name('admin.finance.accounts');
         Route::post('admin/finance/account/store', 'accountStore')->name('admin.finance.account.store');
-        Route::get('admin/finance/account/delete/{id}', 'accountDelete')->name('admin.finance.account.delete');
+        Route::post('admin/finance/account/delete/{id}', 'accountDelete')->name('admin.finance.account.delete');
         Route::get('admin/finance/transfers', 'transfers')->name('admin.finance.transfers');
         Route::post('admin/finance/transfer/store', 'transferStore')->name('admin.finance.transfer.store');
-        Route::get('admin/finance/transfer/delete/{id}', 'transferDelete')->name('admin.finance.transfer.delete');
+        Route::post('admin/finance/transfer/delete/{id}', 'transferDelete')->name('admin.finance.transfer.delete');
     });
 
     // Student

@@ -90,6 +90,8 @@ class ParentController extends Controller
 
     public function studentIdCardGenerate($id)
     {
+        // Ownership: parent may only view their own child's ID card.
+        abort_if(!User::where('id', $id)->where('parent_id', auth()->user()->id)->exists(), 403);
         $student_details = (new CommonController)->get_student_details_by_id($id);
         return view('parent.user.id_card', ['student_details' => $student_details]);
     }
@@ -133,8 +135,10 @@ class ParentController extends Controller
 
     public function FeePayment(Request $request, $id)
     {
-
-        $fee_details = StudentFeeManager::where('id', $id)->first()->toArray();
+        // Ownership: fee record must belong to one of this parent's children.
+        $fee = StudentFeeManager::where('id', $id)->where('parent_id', auth()->user()->id)->first();
+        abort_if(!$fee, 403);
+        $fee_details = $fee->toArray();
         $user_info = User::where('id', auth()->user()->id)->first()->toArray();
         return view('parent.payment.payment_gateway', ['fee_details' => $fee_details, 'user_info' => $user_info]);
     }
@@ -183,8 +187,9 @@ class ParentController extends Controller
 
     public function studentFeeinvoice(Request $request, $id)
     {
-
-        $invoice_details = StudentFeeManager::find($id)->toArray();
+        $invoice = StudentFeeManager::where('id', $id)->where('parent_id', auth()->user()->id)->first();
+        abort_if(!$invoice, 403);
+        $invoice_details = $invoice->toArray();
         $student_details = (new CommonController)->get_student_details_by_id($invoice_details['student_id'])->toArray();
 
         return view('parent.fee_manager.invoice', ['invoice_details' => $invoice_details, 'student_details' => $student_details]);
@@ -336,6 +341,8 @@ class ParentController extends Controller
 
         if(!empty($request->all())){
             $data = $request->all();
+            // Ownership: parent may only view their own child's attendance.
+            abort_if(!User::where('id', $data['student_id'])->where('parent_id', auth()->user()->id)->exists(), 403);
             $date = '01 '.$data['month'].' '.$data['year'];
             $page_data['attendance_date'] = strtotime($date);
             $page_data['month'] = $data['month'];
@@ -347,7 +354,7 @@ class ParentController extends Controller
             $last_date = date("Y-m-t", strtotime($date));
             $last_date = strtotime($last_date);
 
-            $attendance_of_students = DailyAttendances::whereBetween('timestamp', [$first_date, $last_date])->where(['class_id' => $student_data['class_id'], 'section_id' => $student_data['class_id'], 'student_id' => $student_data['user_id']])->get();
+            $attendance_of_students = DailyAttendances::whereBetween('timestamp', [$first_date, $last_date])->where(['class_id' => $student_data['class_id'], 'section_id' => $student_data['section_id'], 'student_id' => $student_data['user_id']])->get();
 
             $no_of_users = DailyAttendances::where(['class_id' => $student_data['class_id'], 'section_id' => $student_data['section_id'], 'student_id' => $student_data['user_id'], 'school_id' => auth()->user()->school_id])->distinct()->count('student_id');
 
@@ -491,6 +498,8 @@ class ParentController extends Controller
     public function marks_list(Request $request, $value = '')
     {
         $data = $request->all();
+        // Ownership: parent may only view their own child's marks.
+        abort_if(!User::where('id', $data['student_id'])->where('parent_id', auth()->user()->id)->exists(), 403);
         $exam_categories = ExamCategory::where('school_id', auth()->user()->school_id)->get();
         $user_id = $data['student_id'];
         $student_details = (new CommonController)->get_student_details_by_id($user_id);
@@ -671,6 +680,8 @@ class ParentController extends Controller
     public function marks_listc(Request $request, $value = '')
     {
         $data = $request->all();
+        // Ownership: parent may only view their own child's marks.
+        abort_if(!User::where('id', $data['student_id'])->where('parent_id', auth()->user()->id)->exists(), 403);
         $exam_categories = ExamCategory::where('school_id', auth()->user()->school_id)->get();
         $user_id = $data['student_id'];
         $student_details = (new CommonController)->get_student_details_by_id($user_id);
@@ -696,6 +707,8 @@ class ParentController extends Controller
 
     public function allMessage(Request $request, $id)
     {
+        // C6: verify the caller participates in this thread (prevents messaging IDOR)
+        abort_if(!\DB::table("message_thrades")->where("id", $id)->where("school_id", auth()->user()->school_id)->where(function($q){ $q->where("sender_id", auth()->user()->id)->orWhere("reciver_id", auth()->user()->id); })->exists(), 403);
 
             $msg_user_details = DB::table('users')
             ->join('message_thrades', function ($join) {

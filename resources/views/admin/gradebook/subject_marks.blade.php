@@ -1,7 +1,9 @@
-<?php 
+<?php
 use App\Models\Subject;
 
-$subjects = json_decode($subject_wise_mark_list->marks, true);
+// H8: guard against a student with no gradebook row (was a null-deref 500).
+$subjects = $subject_wise_mark_list ? json_decode($subject_wise_mark_list->marks, true) : [];
+$subjects = $subjects ?: [];
 
 $index = 0;
 

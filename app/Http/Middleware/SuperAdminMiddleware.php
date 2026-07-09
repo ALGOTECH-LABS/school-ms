@@ -16,11 +16,12 @@ class SuperAdminMiddleware
      */
     public function handle(Request $request, Closure $next)
     {
+        if (!auth()->check()) return redirect()->route('login'); // H1: avoid null deref when unauthenticated
         if(auth()->user()->role_id =='1'){
             return $next($request);
         }else{
             return redirect()->back();
         }
-        
+
     }
 }

@@ -73,7 +73,7 @@
             <td>{{ $q->marks }}</td>
             <td>
               <a class="eBtn btn-secondary" href="javascript:;" onclick="rightModal('{{ route('teacher.qbank.edit_modal', $q->id) }}', '{{ get_phrase('Edit question') }}')">{{ get_phrase('Edit') }}</a>
-              <a class="eBtn btn-danger" href="{{ route('teacher.qbank.delete', $q->id) }}" onclick="return confirm('{{ get_phrase('Delete this question?') }}')">{{ get_phrase('Delete') }}</a>
+              <a class="eBtn btn-danger" href="javascript:;" onclick="if(confirm('{{ get_phrase('Delete this question?') }}')) postDelete('{{ route('teacher.qbank.delete', $q->id) }}')">{{ get_phrase('Delete') }}</a>
             </td>
           </tr>
         @empty

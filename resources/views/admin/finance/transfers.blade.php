@@ -52,7 +52,7 @@
               <td>{{ optional($fa)->name ?? '—' }}</td>
               <td><i class="bi bi-arrow-right text-success"></i> {{ optional($ta)->name ?? '—' }}</td>
               <td class="text-end"><b>{{ $cur }} {{ number_format($t->amount,2) }}</b></td>
-              <td class="text-end"><a class="eBtn btn-danger" href="{{ route('admin.finance.transfer.delete', $t->id) }}" onclick="return confirm('{{ get_phrase('Delete this transfer?') }}')">{{ get_phrase('Delete') }}</a></td>
+              <td class="text-end"><a class="eBtn btn-danger" href="javascript:;" onclick="if(confirm('{{ get_phrase('Delete this transfer?') }}')) postDelete('{{ route('admin.finance.transfer.delete', $t->id) }}')">{{ get_phrase('Delete') }}</a></td>
             </tr>
           @empty
             <tr><td colspan="5" class="text-center text-muted">{{ get_phrase('No transfers yet.') }}</td></tr>

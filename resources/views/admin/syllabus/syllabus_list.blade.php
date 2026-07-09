@@ -91,7 +91,7 @@ $active_session = get_school_settings(auth()->user()->school_id)->value('running
                                 <td><a href="{{ asset('assets/uploads/syllabus') }}/{{ $syllabus['file'] }}" class="btn btn-primary btn-sm bi bi-download" download>{{ get_phrase(' Download') }}</a></td>
                                 <td>
                                     <?php $subjects = Subject::find($syllabus['subject_id']); ?>
-                                    {{ $subjects->name }}
+                                    {{ optional($subjects)->name ?? '-' }}
                                 </td>
                                 <td class="text-start">
                                     <div class="adminTable-action">

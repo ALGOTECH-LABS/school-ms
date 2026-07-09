@@ -50,7 +50,7 @@
               <td class="text-end"><b>{{ $cur }} {{ number_format($e->amount,2) }}</b></td>
               <td class="text-end">
                 @if($e->attachment)<a class="eBtn btn-secondary" target="_blank" href="{{ asset('assets/uploads/expenses/'.$e->attachment) }}"><i class="bi bi-paperclip"></i></a>@endif
-                <a class="eBtn btn-danger" href="{{ route('admin.finance.expense.delete', $e->id) }}" onclick="return confirm('{{ get_phrase('Delete this expense?') }}')">{{ get_phrase('Delete') }}</a>
+                <a class="eBtn btn-danger" href="javascript:;" onclick="if(confirm('{{ get_phrase('Delete this expense?') }}')) postDelete('{{ route('admin.finance.expense.delete', $e->id) }}')">{{ get_phrase('Delete') }}</a>
               </td>
             </tr>
           @empty

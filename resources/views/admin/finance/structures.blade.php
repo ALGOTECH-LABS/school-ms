@@ -41,7 +41,7 @@
             <td>{{ $s->due_date ? date('d M Y', $s->due_date) : '—' }}</td>
             <td class="text-end">
               <a class="eBtn btn-primary" href="{{ route('admin.finance.structure.show', $s->id) }}">{{ get_phrase('Open') }}</a>
-              <a class="eBtn btn-danger" href="{{ route('admin.finance.structure.delete', $s->id) }}" onclick="return confirm('{{ get_phrase('Delete this structure?') }}')">{{ get_phrase('Delete') }}</a>
+              <a class="eBtn btn-danger" href="javascript:;" onclick="if(confirm('{{ get_phrase('Delete this structure?') }}')) postDelete('{{ route('admin.finance.structure.delete', $s->id) }}')">{{ get_phrase('Delete') }}</a>
             </td>
           </tr>
         @empty

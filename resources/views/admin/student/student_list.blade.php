@@ -308,7 +308,7 @@ $menu_permission = (empty($user->menu_permission) || $user->menu_permission == '
                                 <a class="dropdown-item" href="javascript:;" onclick="largeModal('{{ route('admin.student.student_profile', ['id' => $student->id]) }}','{{ get_phrase('Student Profile') }}')">{{ get_phrase('Profile') }}</a>
                               </li>
                               <li>
-                                <a class="dropdown-item" href="{{ route('admin.transcript', ['student_id' => $student->user_id]) }}">{{ get_phrase('Transcript') }}</a>
+                                <a class="dropdown-item" href="{{ route('admin.transcript', ['student_id' => $student->id]) }}">{{ get_phrase('Transcript') }}</a>
                               </li>
                               <li>
                                 <a class="dropdown-item" href="{{ route('admin.student.documents', ['id' => $student->id]) }}">{{ get_phrase('Documents') }}</a>

@@ -272,11 +272,26 @@ class QuestionBankController extends Controller
     {
         $quiz = Assignment::where('id', $id)->where('is_quiz', 1)->where('status', 'published')->firstOrFail();
         $enroll = $this->studentEnrollment();
-        abort_if(!$enroll || $enroll->class_id != $quiz->class_id, 403);
+        // Enrollment must match BOTH class and section (H12: was class-only, allowing cross-section submits).
+        abort_if(!$enroll || $enroll->class_id != $quiz->class_id || $enroll->section_id != $quiz->section_id, 403);
 
         $existing = AssignmentSubmission::where('assignment_id', $id)->where('student_id', auth()->user()->id)->first();
         if ($existing) {
             return redirect()->route('student.quiz.take', $id)->with('error', get_phrase('You have already submitted this quiz.'));
+        }
+
+        // C8: enforce deadline + timer server-side (studentTake/JS alone were bypassable via a direct POST).
+        $now = time();
+        if ($quiz->deadline && $now > $quiz->deadline) {
+            return redirect()->route('student.quiz.take', $id)->with('error', get_phrase('This exam is closed — the deadline has passed.'));
+        }
+        if ($quiz->duration_minutes) {
+            $attempt = QuizAttempt::where('assignment_id', $id)->where('student_id', auth()->user()->id)->first();
+            // Window elapsed (30s grace): finalize as expired, ignoring late answers — prevents timer bypass.
+            if ($attempt && $now > $attempt->started_at + ($quiz->duration_minutes * 60) + 30) {
+                $this->finalizeQuiz($quiz, []);
+                return redirect()->route('student.quiz.take', $id)->with('error', get_phrase('Time is up — your quiz was auto-submitted.'));
+            }
         }
 
         $submission = $this->finalizeQuiz($quiz, $request->answers ?? []);
@@ -393,9 +408,13 @@ class QuestionBankController extends Controller
         $quiz = $this->ownedQuiz($submission->assignment_id);
 
         $manual = $request->awarded ?? []; // [question_id => marks]
+        // M4: clamp each awarded mark to [0, that question's max] so a bad/tampered value can't exceed total.
+        $maxMap = AssignmentQuestion::where('assignment_id', $quiz->id)->pluck('marks', 'question_id');
         foreach ($manual as $qid => $marks) {
+            $max = (float) ($maxMap[$qid] ?? 0);
+            $awarded = max(0, min((float) $marks, $max));
             AssignmentAnswer::where('submission_id', $submission_id)->where('question_id', $qid)
-                ->update(['awarded_marks' => (int) $marks, 'is_correct' => (int)$marks > 0 ? 1 : 0]);
+                ->update(['awarded_marks' => $awarded, 'is_correct' => $awarded > 0 ? 1 : 0]);
         }
 
         $total = (int) AssignmentAnswer::where('submission_id', $submission_id)->sum('awarded_marks');

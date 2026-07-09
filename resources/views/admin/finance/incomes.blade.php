@@ -46,7 +46,7 @@
               <td>{{ $i->source }}<br>@if($i->description)<small class="text-muted">{{ $i->description }}</small>@endif</td>
               <td>{{ $i->payer ?: '—' }}</td>
               <td class="text-end"><b class="text-success">{{ $cur }} {{ number_format($i->amount,2) }}</b></td>
-              <td class="text-end"><a class="eBtn btn-danger" href="{{ route('admin.finance.income.delete', $i->id) }}" onclick="return confirm('{{ get_phrase('Delete this income?') }}')">{{ get_phrase('Delete') }}</a></td>
+              <td class="text-end"><a class="eBtn btn-danger" href="javascript:;" onclick="if(confirm('{{ get_phrase('Delete this income?') }}')) postDelete('{{ route('admin.finance.income.delete', $i->id) }}')">{{ get_phrase('Delete') }}</a></td>
             </tr>
           @empty
             <tr><td colspan="5" class="text-center text-muted">{{ get_phrase('No other income recorded yet.') }}</td></tr>

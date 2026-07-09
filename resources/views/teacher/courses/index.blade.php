@@ -44,7 +44,7 @@
         </p>
         <div class="d-flex" style="gap:8px;" onclick="event.stopPropagation()">
           <a class="eBtn btn-primary" href="{{ route('teacher.addons.course.manage', $course->id) }}">{{ get_phrase('Manage content') }}</a>
-          <a class="eBtn btn-danger" href="{{ route('teacher.addons.course.delete', $course->id) }}" onclick="return confirm('{{ get_phrase('Delete this course and all its content?') }}')">{{ get_phrase('Delete') }}</a>
+          <a class="eBtn btn-danger" href="javascript:;" onclick="if(confirm('{{ get_phrase('Delete this course and all its content?') }}')) postDelete('{{ route('teacher.addons.course.delete', $course->id) }}')">{{ get_phrase('Delete') }}</a>
         </div>
       </div>
     </div>

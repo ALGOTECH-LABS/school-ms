@@ -64,7 +64,7 @@
                 </td>
                 <td>
                   <a class="eBtn btn-secondary" href="{{ route('teacher.assignment.show', $assignment->id) }}">{{ get_phrase('View & grade') }}</a>
-                  <a class="eBtn btn-danger" href="{{ route('teacher.assignment.delete', $assignment->id) }}" onclick="return confirm('{{ get_phrase('Delete this assignment?') }}')">{{ get_phrase('Delete') }}</a>
+                  <a class="eBtn btn-danger" href="javascript:;" onclick="if(confirm('{{ get_phrase('Delete this assignment?') }}')) postDelete('{{ route('teacher.assignment.delete', $assignment->id) }}')">{{ get_phrase('Delete') }}</a>
                 </td>
               </tr>
             @empty

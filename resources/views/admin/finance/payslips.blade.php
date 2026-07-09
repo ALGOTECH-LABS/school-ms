@@ -49,7 +49,7 @@
             <td class="text-end">
               <a class="eBtn btn-secondary" target="_blank" href="{{ route('admin.finance.payslip.show', $p->id) }}">{{ get_phrase('Slip') }}</a>
               @if($p->status!=='paid')<a class="eBtn btn-primary" href="{{ route('admin.finance.payslip.pay', $p->id) }}" onclick="return confirm('{{ get_phrase('Mark as paid? This posts to the finance ledger.') }}')">{{ get_phrase('Pay') }}</a>@endif
-              <a class="eBtn btn-danger" href="{{ route('admin.finance.payslip.delete', $p->id) }}" onclick="return confirm('{{ get_phrase('Delete payslip?') }}')">{{ get_phrase('Delete') }}</a>
+              <a class="eBtn btn-danger" href="javascript:;" onclick="if(confirm('{{ get_phrase('Delete payslip?') }}')) postDelete('{{ route('admin.finance.payslip.delete', $p->id) }}')">{{ get_phrase('Delete') }}</a>
             </td>
           </tr>
         @empty
