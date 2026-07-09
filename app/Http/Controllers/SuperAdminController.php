@@ -103,6 +103,37 @@ class SuperAdminController extends Controller
     }
 
     /**
+     * Activity log — who logged in, when, and what they did.
+     */
+    public function activityLog(\Illuminate\Http\Request $request)
+    {
+        [$logs, $stats] = \App\Models\ActivityLog::report($request);   // null school = all schools
+        $roles = \App\Models\ActivityLog::$roles;
+        $logRoute = 'superadmin.activity_log';
+        $isSuper  = true;
+        $search = $request->get('search',''); $role = $request->get('role','');
+        $type = $request->get('type',''); $from = $request->get('from',''); $to = $request->get('to','');
+        $pageViews = get_settings('log_page_views') == '1';
+        $retention = (int) (get_settings('log_retention_days') ?: 30);
+
+        return view('superadmin.activity_log', compact('logs','stats','roles','search','role','type','from','to','logRoute','isSuper','pageViews','retention'));
+    }
+
+    /** Superadmin-only: toggle page-view logging, set retention, and optionally purge now. */
+    public function activityLogSettings(\Illuminate\Http\Request $request)
+    {
+        \DB::table('global_settings')->updateOrInsert(['key' => 'log_page_views'], ['value' => $request->has('log_page_views') ? '1' : '0']);
+        $days = max(1, (int) $request->get('log_retention_days', 30));
+        \DB::table('global_settings')->updateOrInsert(['key' => 'log_retention_days'], ['value' => (string) $days]);
+
+        if ($request->get('purge')) {
+            \App\Models\ActivityLog::where('created_at', '<', date('Y-m-d H:i:s', strtotime("-$days days")))->delete();
+            \App\Models\Visit::where('created_at', '<', date('Y-m-d H:i:s', strtotime("-$days days")))->delete();
+        }
+        return redirect()->route('superadmin.activity_log')->with('message', get_phrase('Activity log settings saved.'));
+    }
+
+    /**
      * Show the school list.
      *
      * @return \Illuminate\Contracts\Support\Renderable

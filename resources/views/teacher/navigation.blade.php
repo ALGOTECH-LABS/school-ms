@@ -7,8 +7,9 @@
     <!-- all the meta tags -->
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta content="" name="description" />
-    <meta content="" name="author" />
+    <meta content="{{ get_settings('system_name') }} — a complete school management system powered by Algotech Labs." name="description" />
+    <meta content="school management system, e-learning, student information system, online exams, fees management, Algotech Labs" name="keywords" />
+    <meta content="Algotech Labs" name="author" />
     <meta name="csrf-token" content="{{ csrf_token() }}">
     
     <!-- all the css files -->

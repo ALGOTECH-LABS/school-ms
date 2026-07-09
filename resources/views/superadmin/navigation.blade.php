@@ -6,8 +6,9 @@
     <!-- all the meta tags -->
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta content="" name="description" />
-    <meta content="" name="author" />
+    <meta content="{{ get_settings('system_name') }} — a complete school management system powered by Algotech Labs." name="description" />
+    <meta content="school management system, e-learning, student information system, online exams, fees management, Algotech Labs" name="keywords" />
+    <meta content="Algotech Labs" name="author" />
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <!-- all the css files -->
@@ -105,6 +106,20 @@
 
             </div>
             <span class="link_name">{{ get_phrase('Dashboard') }}</span>
+          </a>
+        </div>
+      </li>
+
+      <li class="nav-links-li {{ request()->is('superadmin/activity-log') ? 'showMenu':'' }}">
+        <div class="iocn-link">
+          <a href="{{ route('superadmin.activity_log') }}">
+            <div class="sidebar_icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="48" height="48" fill="currentColor">
+                <path d="M256,0C114.6,0,0,114.6,0,256s114.6,256,256,256s256-114.6,256-256S397.4,0,256,0z M256,464c-114.7,0-208-93.3-208-208S141.3,48,256,48s208,93.3,208,208S370.7,464,256,464z"/>
+                <path d="M280,132h-48v139.3l99.7,59.8l24.6-41.2L280,244V132z"/>
+              </svg>
+            </div>
+            <span class="link_name">{{ get_phrase('Activity Log') }}</span>
           </a>
         </div>
       </li>

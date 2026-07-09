@@ -89,6 +89,8 @@ Route::get('student/account-disable', function () {
 Route::controller(SuperAdminController::class)->middleware('auth','superAdmin')->group(function () {
 
     Route::get('superadmin/dashboard', 'superadminDashboard')->name('superadmin.dashboard')->middleware('role_id');
+    Route::get('superadmin/activity-log', 'activityLog')->name('superadmin.activity_log')->middleware('role_id');
+    Route::post('superadmin/activity-log/settings', 'activityLogSettings')->name('superadmin.activity_log.settings')->middleware('role_id');
 
 
     //School routes
@@ -199,6 +201,7 @@ Route::controller(SuperAdminController::class)->middleware('auth','superAdmin')-
 Route::controller(AdminController::class)->middleware('admin','auth')->group(function () {
 
     Route::get('admin/dashboard', 'adminDashboard')->name('admin.dashboard')->middleware('role_id');
+    Route::get('admin/activity-log', 'activityLog')->name('admin.activity_log');
 
 
     //Common routes

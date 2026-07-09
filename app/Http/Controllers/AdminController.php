@@ -165,6 +165,23 @@ class AdminController extends Controller
     }
 
     /**
+     * Activity log scoped to THIS school (who logged in / what they did).
+     */
+    public function activityLog(\Illuminate\Http\Request $request)
+    {
+        [$logs, $stats] = \App\Models\ActivityLog::report($request, auth()->user()->school_id);
+        $roles = \App\Models\ActivityLog::$roles;
+        $logRoute = 'admin.activity_log';
+        $isSuper  = false;
+        $search = $request->get('search',''); $role = $request->get('role','');
+        $type = $request->get('type',''); $from = $request->get('from',''); $to = $request->get('to','');
+        $pageViews = get_settings('log_page_views') == '1';
+        $retention = (int) (get_settings('log_retention_days') ?: 30);
+
+        return view('superadmin.activity_log', compact('logs','stats','roles','search','role','type','from','to','logRoute','isSuper','pageViews','retention'));
+    }
+
+    /**
      * Show the admin list.
      *
      * @return \Illuminate\Contracts\Support\Renderable

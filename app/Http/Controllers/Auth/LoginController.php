@@ -56,6 +56,20 @@ class LoginController extends Controller
         return view('auth.login');
     }
 
+    /**
+     * Log the "logged out" activity, then perform the standard logout.
+     */
+    public function logout(Request $request)
+    {
+        \App\Models\ActivityLog::record('Logged out', 'Signed out of the portal', $request);
+
+        $this->guard()->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()->route('login');
+    }
+
     public function login(Request $request)
     {
         $input = $request->all();
@@ -74,6 +88,7 @@ class LoginController extends Controller
                     auth()->logout();
                     return redirect()->route('login')->with('error', 'Your account is disabled. Please contact your administrator.');
                 }
+                \App\Models\ActivityLog::record('Logged in', 'Signed in to the portal', $request);
                 if (auth()->user()->role_id == 1) {
 
                     session(['superadmin_login' => 1]);

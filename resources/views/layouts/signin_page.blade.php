@@ -3,12 +3,21 @@
 
 <head>
 
-  <title>{{ get_phrase('Login').' | '.get_settings('system_title') }}</title>
+  <title>{{ get_settings('system_name') }} — {{ get_phrase('School Management System') }}</title>
   <!-- all the meta tags -->
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta content="" name="description" />
-  <meta content="" name="author" />
+  <meta content="{{ get_settings('system_name') }} — a complete school management &amp; e-learning platform powered by Algotech Labs." name="description" />
+  <meta content="school management system, e-learning, student information system, online exams, fees management, nursing school, Algotech Labs" name="keywords" />
+  <meta content="Algotech Labs" name="author" />
+  <!-- Open Graph / social -->
+  <meta property="og:title" content="{{ get_settings('system_name') }} — School Management System" />
+  <meta property="og:description" content="A complete school management &amp; e-learning platform powered by Algotech Labs." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="{{ asset('assets/uploads/logo/'.get_settings('dark_logo')) }}" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="{{ get_settings('system_name') }} — School Management System" />
+  <meta name="twitter:description" content="A complete school management &amp; e-learning platform powered by Algotech Labs." />
   <!-- all the css files -->
   <link rel="shortcut icon" href="{{ asset('assets/uploads/logo/'.get_settings('favicon')) }}" />
   <!-- Bootstrap CSS -->
