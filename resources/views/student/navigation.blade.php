@@ -167,6 +167,9 @@
                   <a class="{{ (request()->is('student/marks')) ? 'active' : '' }}" href="{{ route('student.marks') }}"><span>{{ get_phrase('Marks') }}</span></a>
               </li>
               <li>
+                  <a class="{{ (request()->is('student/academic-history')) ? 'active' : '' }}" href="{{ route('student.academic_history') }}"><span>{{ get_phrase('Academic History') }}</span></a>
+              </li>
+              <li>
                   <a class="{{ (request()->is('student/grade')) ? 'active' : '' }}" href="{{ route('student.grade_list') }}"><span>{{ get_phrase('Grades') }}</span></a>
               </li>
               <li>

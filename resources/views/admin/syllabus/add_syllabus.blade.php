@@ -31,8 +31,14 @@
         </div>
 
         <div class="fpb-7">
-            <label for="syllabus_file" class="eForm-label">{{ get_phrase('Upload syllabus') }}</label>
-            <input type="file" class="form-control eForm-control-file" id="syllabus_file" name = "syllabus_file" required>
+            <label for="syllabus_content" class="eForm-label">{{ get_phrase('Syllabus content') }}</label>
+            <textarea id="syllabus_content" name="content" class="form-control"></textarea>
+            <small class="text-muted">{{ get_phrase('Write the outline, topics, learning outcomes and materials here — or upload a file below (either is fine).') }}</small>
+        </div>
+
+        <div class="fpb-7">
+            <label for="syllabus_file" class="eForm-label">{{ get_phrase('Upload syllabus file (optional)') }}</label>
+            <input type="file" class="form-control eForm-control-file" id="syllabus_file" name = "syllabus_file">
         </div>
 
         <div class="fpb-7 pt-2">
@@ -71,6 +77,22 @@
 
     $(document).ready(function () {
       $(".eChoice-multiple-with-remove").select2();
+      if ($.fn.summernote) {
+        $('#syllabus_content').summernote({
+          height: 240,
+          toolbar: [
+            ['style', ['bold', 'italic', 'underline', 'clear']],
+            ['font', ['strikethrough']],
+            ['para', ['ul', 'ol', 'paragraph']],
+            ['insert', ['link']],
+            ['view', ['codeview']]
+          ],
+          callbacks: {
+            // keep the source textarea in sync so the ajaxForm serialise captures it
+            onChange: function (contents) { $('#syllabus_content').val(contents); }
+          }
+        });
+      }
     });
 
 </script>

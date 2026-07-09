@@ -128,8 +128,12 @@ class TeacherController extends Controller
     public function offlineExamList()
     {
         $id = "all";
-        $exams = Exam::where('exam_type', 'offline')->paginate(10);
-        $classes = Classes::where('school_id', auth()->user()->school_id)->get();
+        $permitted = TeacherPermission::where('teacher_id', auth()->user()->id)->pluck('class_id')->unique()->values();
+        $exams = Exam::where('exam_type', 'offline')
+            ->where('school_id', auth()->user()->school_id)
+            ->whereIn('class_id', $permitted)
+            ->orderByDesc('id')->paginate(10);
+        $classes = Classes::whereIn('id', $permitted)->where('school_id', auth()->user()->school_id)->get();
         return view('teacher.examination.offline_exam_list', compact('exams', 'classes', 'id'));
     }
 
@@ -155,6 +159,111 @@ class TeacherController extends Controller
         ])->get();
         $classes = Classes::where('school_id', auth()->user()->school_id)->get();
         return view('teacher.examination.exam_list', ['exams' => $exams, 'classes' => $classes, 'id' => $id]);
+    }
+
+    /* ============ Teacher-side exam creation (scoped to permitted classes) ============ */
+
+    private function permittedClassIds()
+    {
+        return TeacherPermission::where('teacher_id', auth()->user()->id)
+            ->pluck('class_id')->unique()->values();
+    }
+
+    private function examRules()
+    {
+        return [
+            'exam_category_id' => 'required|integer',
+            'class_id'         => 'required|integer',
+            'subject_id'       => 'required|integer',
+            'class_room_id'    => 'nullable',
+            'starting_date'    => 'required|date',
+            'starting_time'    => 'required',
+            'ending_date'      => 'required|date',
+            'ending_time'      => 'required',
+            'total_marks'      => 'required|integer|min:1|max:1000',
+        ];
+    }
+
+    public function createOfflineExam()
+    {
+        $classes = Classes::whereIn('id', $this->permittedClassIds())
+            ->where('school_id', auth()->user()->school_id)->get();
+        $exam_categories = ExamCategory::where('school_id', auth()->user()->school_id)->get();
+        return view('teacher.examination.add_offline_exam', compact('classes', 'exam_categories'));
+    }
+
+    public function offlineExamCreate(Request $request)
+    {
+        $data = $request->validate($this->examRules());
+        abort_if(!$this->permittedClassIds()->contains((int) $data['class_id']), 403,
+            get_phrase('You can only create exams for classes you teach.'));
+
+        $active_session = get_school_settings(auth()->user()->school_id)->value('running_session');
+        $exam_category  = ExamCategory::find($data['exam_category_id']);
+
+        Exam::create([
+            'name'             => $exam_category->name,
+            'exam_category_id' => $data['exam_category_id'],
+            'exam_type'        => 'offline',
+            'room_number'      => $data['class_room_id'] ?? '',
+            'starting_time'    => strtotime($data['starting_date'].' '.$data['starting_time']),
+            'ending_time'      => strtotime($data['ending_date'].' '.$data['ending_time']),
+            'total_marks'      => $data['total_marks'],
+            'status'           => 'pending',
+            'class_id'         => $data['class_id'],
+            'subject_id'       => $data['subject_id'],
+            'school_id'        => auth()->user()->school_id,
+            'session_id'       => $active_session,
+        ]);
+
+        return redirect()->route('teacher.offline_exam')->with('message', get_phrase('Exam created successfully. You can now enter marks under Examination → Marks.'));
+    }
+
+    public function editOfflineExam($id)
+    {
+        $exam = Exam::findOrFail($id);
+        abort_if(!$this->permittedClassIds()->contains((int) $exam->class_id), 403);
+        $classes = Classes::whereIn('id', $this->permittedClassIds())
+            ->where('school_id', auth()->user()->school_id)->get();
+        $subjects = Subject::where('class_id', $exam->class_id)->get();
+        $exam_categories = ExamCategory::where('school_id', auth()->user()->school_id)->get();
+        return view('teacher.examination.edit_offline_exam', compact('exam', 'classes', 'subjects', 'exam_categories'));
+    }
+
+    public function offlineExamUpdate(Request $request, $id)
+    {
+        $exam = Exam::findOrFail($id);
+        abort_if(!$this->permittedClassIds()->contains((int) $exam->class_id), 403);
+        $data = $request->validate($this->examRules());
+        abort_if(!$this->permittedClassIds()->contains((int) $data['class_id']), 403);
+
+        $active_session = get_school_settings(auth()->user()->school_id)->value('running_session');
+        $exam_category  = ExamCategory::find($data['exam_category_id']);
+
+        Exam::where('id', $id)->update([
+            'name'             => $exam_category->name,
+            'exam_category_id' => $data['exam_category_id'],
+            'exam_type'        => 'offline',
+            'room_number'      => $data['class_room_id'] ?? '',
+            'starting_time'    => strtotime($data['starting_date'].' '.$data['starting_time']),
+            'ending_time'      => strtotime($data['ending_date'].' '.$data['ending_time']),
+            'total_marks'      => $data['total_marks'],
+            'status'           => 'pending',
+            'class_id'         => $data['class_id'],
+            'subject_id'       => $data['subject_id'],
+            'school_id'        => auth()->user()->school_id,
+            'session_id'       => $active_session,
+        ]);
+
+        return redirect()->route('teacher.offline_exam')->with('message', get_phrase('Exam updated successfully.'));
+    }
+
+    public function offlineExamDelete($id)
+    {
+        $exam = Exam::findOrFail($id);
+        abort_if(!$this->permittedClassIds()->contains((int) $exam->class_id), 403);
+        $exam->delete();
+        return redirect()->back()->with('message', get_phrase('Exam deleted.'));
     }
 
     /**
@@ -553,9 +662,11 @@ class TeacherController extends Controller
 
         $active_session = get_school_settings(auth()->user()->school_id)->value('running_session');
 
-        $attendance_of_students = DailyAttendances::whereBetween('timestamp', [$first_date, $last_date])->where(['class_id' => $data['class_id'], 'section_id' => $data['section_id'], 'school_id' => auth()->user()->school_id, 'session_id' => $active_session])->get()->toArray();
+        // One representative row per student for the queried month (the view's
+        // array_slice(0, $no_of_users) grid expects distinct students up front).
+        $attendance_of_students = DailyAttendances::whereBetween('timestamp', [$first_date, $last_date])->where(['class_id' => $data['class_id'], 'section_id' => $data['section_id'], 'school_id' => auth()->user()->school_id, 'session_id' => $active_session])->orderBy('student_id')->orderBy('timestamp')->get()->unique('student_id')->values()->toArray();
 
-        $no_of_users = DailyAttendances::where(['class_id' => $data['class_id'], 'section_id' => $data['section_id'], 'school_id' => auth()->user()->school_id, 'session_id' => $active_session])->distinct()->count('student_id');
+        $no_of_users = count($attendance_of_students);
 
         $permissions=TeacherPermission::where('teacher_id', auth()->user()->id)->select('class_id')->distinct()->get()->toArray();
         $classes=array();

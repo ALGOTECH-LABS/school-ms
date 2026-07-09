@@ -414,6 +414,46 @@ class StudentController extends Controller
     }
 
     /**
+     * Academic history — year-by-year (session-by-session) breakdown of all CATs/exams.
+     */
+    public function academicHistory()
+    {
+        $user   = auth()->user();
+        $grades = \App\Models\Grade::where('school_id', $user->school_id)->orderByDesc('mark_from')->get();
+
+        $rows = \App\Models\Gradebook::where('student_id', $user->id)
+            ->where('school_id', $user->school_id)->get();
+
+        $sessions = \App\Models\Session::whereIn('id', $rows->pluck('session_id')->unique())
+            ->orderByDesc('id')->get();
+
+        $history = [];
+        foreach ($sessions as $session) {
+            $sr = $rows->where('session_id', $session->id);
+            $cats = \App\Models\ExamCategory::whereIn('id', $sr->pluck('exam_category_id')->unique())
+                ->orderBy('id')->get();
+
+            // subject ids appearing in this year's marks
+            $subjIds = collect();
+            $map = []; // [subject_id][cat_id] = mark
+            foreach ($sr as $r) {
+                $m = json_decode($r->marks, true) ?: [];
+                foreach ($m as $sid => $mark) { $subjIds->push($sid); $map[$sid][$r->exam_category_id] = $mark; }
+            }
+            $subjects = \App\Models\Subject::whereIn('id', $subjIds->unique())->get();
+
+            $history[] = [
+                'session'  => $session,
+                'cats'     => $cats,
+                'subjects' => $subjects,
+                'map'      => $map,
+            ];
+        }
+
+        return view('student.marks.history', compact('history', 'grades'));
+    }
+
+    /**
      * Show the book list.
      *
      * @return \Illuminate\Contracts\Support\Renderable

@@ -1821,14 +1821,16 @@ class AdminController extends Controller
 
         $active_session = get_school_settings(auth()->user()->school_id)->value('running_session');
 
-        $attendance_of_students = DailyAttendances::whereBetween('timestamp', [$first_date, $last_date])->where(['class_id' => $data['class_id'], 'section_id' => $data['section_id'], 'school_id' => auth()->user()->school_id, 'session_id' => $active_session])->get()->toArray();
+        // One representative row per student for the queried month (the view's
+        // array_slice(0, $no_of_users) grid expects distinct students up front).
+        $attendance_of_students = DailyAttendances::whereBetween('timestamp', [$first_date, $last_date])->where(['class_id' => $data['class_id'], 'section_id' => $data['section_id'], 'school_id' => auth()->user()->school_id, 'session_id' => $active_session])->orderBy('student_id')->orderBy('timestamp')->get()->unique('student_id')->values()->toArray();
 
         $students_details = Enrollment::where('class_id', $page_data['class_id'])
         ->where('section_id', $page_data['section_id'])
         ->get();
-        
 
-        $no_of_users = DailyAttendances::where(['class_id' => $data['class_id'], 'section_id' => $data['section_id'], 'school_id' => auth()->user()->school_id, 'session_id' => $active_session])->distinct()->count('student_id');
+
+        $no_of_users = count($attendance_of_students);
 
         $classes = Classes::where('school_id', auth()->user()->school_id)->get();
 
@@ -2133,15 +2135,12 @@ class AdminController extends Controller
 
         $active_session = get_school_settings(auth()->user()->school_id)->value('running_session');
 
-        $file = $data['syllabus_file'];
-
-        if ($file) {
+        // File is now OPTIONAL — a syllabus can be written inline (WYSIWYG content) instead.
+        $filename = null;
+        if ($request->hasFile('syllabus_file')) {
+            $file = $request->file('syllabus_file');
             $filename = $file->getClientOriginalName();
-            $extension = $file->getClientOriginalExtension(); //Get extension of uploaded file
-
             $file->move(public_path('assets/uploads/syllabus/'), $filename);
-
-            $filepath = asset('assets/uploads/syllabus/'.$filename);
         }
 
         Syllabus::create([
@@ -2150,6 +2149,7 @@ class AdminController extends Controller
             'section_id' => $data['section_id'],
             'subject_id' => $data['subject_id'],
             'file' => $filename,
+            'content' => $data['content'] ?? null,
             'school_id' => auth()->user()->school_id,
             'session_id' => $active_session,
         ]);
@@ -2185,6 +2185,7 @@ class AdminController extends Controller
             'section_id' => $data['section_id'],
             'subject_id' => $data['subject_id'],
             'file' => $filename,
+            'content' => $data['content'] ?? null,
             'school_id' => auth()->user()->school_id,
             'session_id' => $active_session,
         ]);

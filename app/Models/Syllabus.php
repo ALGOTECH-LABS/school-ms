@@ -17,6 +17,6 @@ class Syllabus extends Model
      * @var array
      */
     protected $fillable = [
-        'title', 'class_id', 'section_id', 'subject_id', 'file', 'school_id','session_id'
+        'title', 'class_id', 'section_id', 'subject_id', 'file', 'content', 'school_id','session_id'
     ];
 }
