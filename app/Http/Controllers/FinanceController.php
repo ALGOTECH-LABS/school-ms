@@ -280,6 +280,22 @@ class FinanceController extends Controller
             'account_id' => $this->ownAccountId($request->account_id),
         ]);
 
+        // Koha two-way settle: if this invoice mirrors a Koha library fine, push the
+        // payment back so the borrower's Koha account settles too.
+        $fine = \DB::table('koha_fine_sync')->where('invoice_id', $invoice->id)->first();
+        if ($fine) {
+            $map = \DB::table('koha_borrower_map')->where('user_id', $invoice->student_id)->first();
+            if ($map && $map->koha_borrowernumber) {
+                try {
+                    (new \App\Services\Koha())->creditPatron(
+                        $map->koha_borrowernumber,
+                        (float) $request->amount,
+                        'Library fine paid via school portal · receipt ' . $payment->receipt_no
+                    );
+                } catch (\Throwable $e) { /* never block the in-app receipt on a Koha hiccup */ }
+            }
+        }
+
         return redirect()->route('admin.finance.receipt', $payment->id)
             ->with('message', get_phrase('Payment recorded.'));
     }

@@ -54,7 +54,7 @@ class SyncKohaFines extends Command
                     'invoice_no'   => 'LIB-FINE-' . $lineId,
                     'title'        => 'Library fine: ' . $desc,
                     'total_amount' => $outstanding,
-                    'fine'         => $outstanding,
+                    'fine'         => 0,
                     'paid_amount'  => 0,
                     'balance'      => $outstanding,
                     'status'       => 'unpaid',

@@ -15,7 +15,16 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        // $schedule->command('inspire')->hourly();
+        // ---- Koha ILS sync (only runs when Koha is configured) ----
+        if (get_settings('koha_base_url')) {
+            // circulation + fines: frequent, so borrowed books & fines stay fresh
+            $schedule->command('koha:sync-circulation')->everyFifteenMinutes()->withoutOverlapping()->runInBackground();
+            $schedule->command('koha:sync-fines')->everyFifteenMinutes()->withoutOverlapping()->runInBackground();
+            // catalog changes made in Koha: hourly reverse mirror
+            $schedule->command('koha:sync-catalog')->hourly()->withoutOverlapping()->runInBackground();
+            // patrons: heavy + change rarely, run nightly
+            $schedule->command('koha:sync-patrons')->dailyAt('01:00')->withoutOverlapping()->runInBackground();
+        }
     }
 
     /**

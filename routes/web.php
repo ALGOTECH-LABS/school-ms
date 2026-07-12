@@ -1090,6 +1090,11 @@ Route::controller(InstallController::class)->group(function () {
 Route::middleware(['auth'])->group(function () {
     Route::get('student/library/catalog',   [KohaController::class, 'catalog'])->middleware('student')->name('student.koha.catalog');
     Route::get('librarian/library/catalog', [KohaController::class, 'catalog'])->middleware('librarian')->name('librarian.koha.catalog');
+    Route::get('librarian/library/dashboard', [KohaController::class, 'librarianDashboard'])->middleware('librarian')->name('librarian.koha.dashboard');
+    Route::get('librarian/library/patron', [KohaController::class, 'patronLookup'])->middleware('librarian')->name('librarian.koha.patron');
+    Route::post('librarian/library/issue', [KohaController::class, 'doIssue'])->middleware('librarian')->name('librarian.koha.issue');
+    Route::get('librarian/koha', [KohaController::class, 'librarianPanel'])->middleware('librarian')->name('librarian.koha.panel');
+    Route::post('librarian/koha/sync', [KohaController::class, 'runSync'])->middleware('librarian')->name('librarian.koha.sync');
     Route::get('admin/library/catalog',     [KohaController::class, 'catalog'])->middleware('admin')->name('admin.koha.catalog');
     Route::get('admin/koha',                [KohaController::class, 'adminPanel'])->middleware('admin')->name('admin.koha');
     Route::post('admin/koha/sync',          [KohaController::class, 'runSync'])->middleware('admin')->name('admin.koha.sync');

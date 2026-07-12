@@ -104,6 +104,20 @@ class Koha
         return (is_array($arr) && count($arr)) ? $arr[0] : null;
     }
 
+    /** Search patrons by name/cardnumber (free text). */
+    public function searchPatrons(string $q, int $perPage = 15): array
+    {
+        $r = $this->http()->get('/patrons', [
+            'q' => json_encode(['-or' => [
+                ['surname'    => ['-like' => "%{$q}%"]],
+                ['firstname'  => ['-like' => "%{$q}%"]],
+                ['cardnumber' => ['-like' => "%{$q}%"]],
+            ]]),
+            '_per_page' => $perPage,
+        ]);
+        return $r->successful() ? ($r->json() ?? []) : [];
+    }
+
     public function createPatron(array $body): array
     {
         $r = $this->http()->post('/patrons', $body);
@@ -132,6 +146,27 @@ class Koha
     {
         $r = $this->http()->get("/items/{$itemId}");
         return $r->successful() ? $r->json() : null;
+    }
+
+    /** Resolve a barcode (external_id) to its item. */
+    public function getItemByBarcode(string $barcode): ?array
+    {
+        $r = $this->http()->get('/items', ['external_id' => $barcode, '_per_page' => 1]);
+        $arr = $r->json();
+        return (is_array($arr) && count($arr)) ? $arr[0] : null;
+    }
+
+    /** A single patron by borrowernumber. */
+    public function getPatron($patronId): ?array
+    {
+        $r = $this->http()->get("/patrons/{$patronId}");
+        return $r->successful() ? $r->json() : null;
+    }
+
+    /** Staff-interface check-in (returns) URL for a barcode — REST has no check-in on this Koha. */
+    public function checkinUrl(string $barcode = ''): string
+    {
+        return rtrim($this->base, '/') . '/cgi-bin/koha/circ/returns.pl' . ($barcode ? ('?barcode=' . urlencode($barcode)) : '');
     }
 
     /** Patron account summary (balance + outstanding debits/fines). */
@@ -232,6 +267,17 @@ class Koha
             'amount'      => $amount,
             'description' => $description,
             'type'        => $type,
+        ]);
+        return ['ok' => $r->successful(), 'status' => $r->status(), 'body' => $r->json() ?? $r->body()];
+    }
+
+    /** Record a payment credit on a patron's account (auto-applies to outstanding debits). */
+    public function creditPatron($patronId, float $amount, string $description = 'Payment via school portal'): array
+    {
+        $r = $this->http()->post("/patrons/{$patronId}/account/credits", [
+            'amount'      => $amount,
+            'credit_type' => 'PAYMENT',
+            'description' => $description,
         ]);
         return ['ok' => $r->successful(), 'status' => $r->status(), 'body' => $r->json() ?? $r->body()];
     }
