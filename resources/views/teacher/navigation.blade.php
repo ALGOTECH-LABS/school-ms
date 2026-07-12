@@ -230,6 +230,25 @@
             </li>
             @endif
 
+            {{-- Library (Koha) --}}
+            <li class="nav-links-li {{ request()->is('teacher/library*') ? 'showMenu':'' }}">
+                <div class="iocn-link">
+                    <a href="#">
+                        <div class="sidebar_icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48" height="48"><path d="M22,2H6A3,3,0,0,0,3,5V19a3,3,0,0,0,3,3H22a1,1,0,0,0,1-1V3A1,1,0,0,0,22,2ZM6,4H21V16H6a3,3,0,0,0-1,.184V5A1,1,0,0,1,6,4ZM6,20a1,1,0,0,1,0-2H21v2Z"/></svg>
+                        </div>
+                        <span class="link_name">{{ get_phrase('Library') }}</span>
+                    </a>
+                    <span class="arrow">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="4.743" height="7.773" viewBox="0 0 4.743 7.773"><path d="M1.466.247,4.5,3.277a.793.793,0,0,1,.189.288.92.92,0,0,1,0,.643A.793.793,0,0,1,4.5,4.5l-3.03,3.03a.828.828,0,0,1-.609.247.828.828,0,0,1-.609-.247.875.875,0,0,1,0-1.219L2.668,3.886.247,1.466A.828.828,0,0,1,0,.856.828.828,0,0,1,.247.247.828.828,0,0,1,.856,0,.828.828,0,0,1,1.466.247Z" fill="#fff" opacity="1"/></svg>
+                    </span>
+                </div>
+                <ul class="sub-menu">
+                    <li><a class="{{ (request()->is('teacher/library/catalog')) ? 'active' : '' }}" href="{{ route('teacher.koha.catalog') }}"><span>{{ get_phrase('Catalog Search') }}</span></a></li>
+                    <li><a class="{{ (request()->is('teacher/my-library')) ? 'active' : '' }}" href="{{ route('teacher.koha.mylibrary') }}"><span>{{ get_phrase('My Books') }}</span></a></li>
+                </ul>
+            </li>
+
             @if(addon_status('hr_management')==1)
             <?php
             $to=strtotime(date("m/d/Y"))+8600;

@@ -295,6 +295,8 @@
 				<ul class="sub-menu">
 					<li><a class="{{ (request()->is('student/book/list')) ? 'active' : '' }}" href="{{ route('student.book.book_list') }}"><span>{{ get_phrase('List Of Books') }}</span></a></li>
 					<li><a class="{{ (request()->is('student/book_issue')) ? 'active' : '' }}" href="{{ route('student.book.issued_list') }}"><span>{{ get_phrase('Issued Book') }}</span></a></li>
+					<li><a class="{{ (request()->is('student/library/catalog')) ? 'active' : '' }}" href="{{ route('student.koha.catalog') }}"><span>{{ get_phrase('Catalog Search') }}</span></a></li>
+					<li><a class="{{ (request()->is('student/my-library')) ? 'active' : '' }}" href="{{ route('student.koha.mylibrary') }}"><span>{{ get_phrase('My Library') }}</span></a></li>
 					<li><a class="{{ (request()->is('student/noticeboard*')) ? 'active' : '' }}" href="{{ route('student.noticeboard.list') }}"><span>{{ get_phrase('Noticeboard') }}</span></a></li>
           <li><a class="{{ (request()->is('student/events/list*')) ? 'active' : '' }}" href="{{ route('student.events.list') }}"><span>{{ get_phrase('Events') }}</span></a></li>
 				</ul>

@@ -96,57 +96,49 @@
         </div>
       </li>
 			<!-- Sidebar menu -->
-			<li class="nav-links-li {{ request()->is('librarian/book*') || request()->is('librarian/book_issue*') || request()->is('librarian/noticeboard*') || request()->is('librarian/events/list*') ? 'showMenu':'' }}">
+			{{-- ===== Library (own top-level menu) ===== --}}
+			<li class="nav-links-li {{ request()->is('librarian/book*') || request()->is('librarian/book_issue*') || request()->is('librarian/library*') || request()->is('librarian/koha') ? 'showMenu':'' }}">
+          <div class="iocn-link">
+              <a href="#">
+                  <div class="sidebar_icon">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48" height="48"><path d="M22,2H6A3,3,0,0,0,3,5V19a3,3,0,0,0,3,3H22a1,1,0,0,0,1-1V3A1,1,0,0,0,22,2ZM6,4H21V16H6a3,3,0,0,0-1,.184V5A1,1,0,0,1,6,4ZM6,20a1,1,0,0,1,0-2H21v2Z"/></svg>
+                  </div>
+                  <span class="link_name">{{ get_phrase('Library') }}</span>
+              </a>
+              <span class="arrow">
+                <svg xmlns="http://www.w3.org/2000/svg" width="4.743" height="7.773" viewBox="0 0 4.743 7.773">
+                  <path d="M1.466.247,4.5,3.277a.793.793,0,0,1,.189.288.92.92,0,0,1,0,.643A.793.793,0,0,1,4.5,4.5l-3.03,3.03a.828.828,0,0,1-.609.247.828.828,0,0,1-.609-.247.875.875,0,0,1,0-1.219L2.668,3.886.247,1.466A.828.828,0,0,1,0,.856.828.828,0,0,1,.247.247.828.828,0,0,1,.856,0,.828.828,0,0,1,1.466.247Z" fill="#fff" opacity="1"/>
+                </svg>
+              </span>
+          </div>
+          <ul class="sub-menu">
+              <li><a class="{{ (request()->is('librarian/library/dashboard')) ? 'active' : '' }}" href="{{ route('librarian.koha.dashboard') }}"><span>{{ get_phrase('Library Dashboard') }}</span></a></li>
+              <li><a class="{{ (request()->is('librarian/library/patron')) ? 'active' : '' }}" href="{{ route('librarian.koha.patron') }}"><span>{{ get_phrase('Patron Lookup') }}</span></a></li>
+              <li><a class="{{ (request()->is('librarian/library/catalog')) ? 'active' : '' }}" href="{{ route('librarian.koha.catalog') }}"><span>{{ get_phrase('Catalog Search') }}</span></a></li>
+              <li><a class="{{ (request()->is('librarian/book/list')) ? 'active' : '' }}" href="{{ route('librarian.book.book_list') }}"><span>{{ get_phrase('Book List Manager') }}</span></a></li>
+              <li><a class="{{ (request()->is('librarian/book_issue')) ? 'active' : '' }}" href="{{ route('librarian.book_issue.list') }}"><span>{{ get_phrase('Book Issue Report') }}</span></a></li>
+              <li><a class="{{ (request()->is('librarian/koha')) ? 'active' : '' }}" href="{{ route('librarian.koha.panel') }}"><span>{{ get_phrase('Koha Panel') }}</span></a></li>
+          </ul>
+      </li>
+
+			{{-- ===== Back Office (non-library) ===== --}}
+			<li class="nav-links-li {{ request()->is('librarian/noticeboard*') || request()->is('librarian/events/list*') ? 'showMenu':'' }}">
           <div class="iocn-link">
               <a href="#">
                   <div class="sidebar_icon">
                       <svg xmlns="http://www.w3.org/2000/svg" id="Bold" viewBox="0 0 24 24" width="48" height="48"><path d="M18.5,3h-.642A4,4,0,0,0,14,0H10A4,4,0,0,0,6.142,3H5.5A5.506,5.506,0,0,0,0,8.5v10A5.506,5.506,0,0,0,5.5,24h13A5.507,5.507,0,0,0,24,18.5V8.5A5.507,5.507,0,0,0,18.5,3ZM5.5,6h13A2.5,2.5,0,0,1,21,8.5V11H3V8.5A2.5,2.5,0,0,1,5.5,6Zm13,15H5.5A2.5,2.5,0,0,1,3,18.5V14h7a2,2,0,0,0,2,2h0a2,2,0,0,0,2-2h7v4.5A2.5,2.5,0,0,1,18.5,21Z"/></svg>
                   </div>
-                  <span class="link_name">
-                      {{ get_phrase('Back Office') }}
-                  </span>
+                  <span class="link_name">{{ get_phrase('Back Office') }}</span>
               </a>
               <span class="arrow">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="4.743"
-                  height="7.773"
-                  viewBox="0 0 4.743 7.773"
-                >
-                  <path
-                    id="navigate_before_FILL0_wght600_GRAD0_opsz24"
-                    d="M1.466.247,4.5,3.277a.793.793,0,0,1,.189.288.92.92,0,0,1,0,.643A.793.793,0,0,1,4.5,4.5l-3.03,3.03a.828.828,0,0,1-.609.247.828.828,0,0,1-.609-.247.875.875,0,0,1,0-1.219L2.668,3.886.247,1.466A.828.828,0,0,1,0,.856.828.828,0,0,1,.247.247.828.828,0,0,1,.856,0,.828.828,0,0,1,1.466.247Z"
-                    fill="#fff"
-                    opacity="1"
-                  />
+                <svg xmlns="http://www.w3.org/2000/svg" width="4.743" height="7.773" viewBox="0 0 4.743 7.773">
+                  <path d="M1.466.247,4.5,3.277a.793.793,0,0,1,.189.288.92.92,0,0,1,0,.643A.793.793,0,0,1,4.5,4.5l-3.03,3.03a.828.828,0,0,1-.609.247.828.828,0,0,1-.609-.247.875.875,0,0,1,0-1.219L2.668,3.886.247,1.466A.828.828,0,0,1,0,.856.828.828,0,0,1,.247.247.828.828,0,0,1,.856,0,.828.828,0,0,1,1.466.247Z" fill="#fff" opacity="1"/>
                 </svg>
               </span>
           </div>
           <ul class="sub-menu">
-              <li>
-                <a class="{{ (request()->is('librarian/book/list')) ? 'active' : '' }}" href="{{ route('librarian.book.book_list') }}">
-                  <span>{{ get_phrase('Book List Manager') }}</span>
-                </a>
-              </li>
-
-              <li>
-                <a class="{{ (request()->is('librarian/book_issue')) ? 'active' : '' }}" href="{{ route('librarian.book_issue.list') }}">
-                  <span>{{ get_phrase('Book Issue Report') }}</span>
-                </a>
-              </li>
-
-              <li>
-                <a class="{{ (request()->is('librarian/noticeboard*')) ? 'active' : '' }}" href="{{ route('librarian.noticeboard.list') }}">
-                  <span>{{ get_phrase('Noticeboard') }}</span>
-                </a>
-              </li>
-
-              <li>
-                  <a class="{{ (request()->is('librarian/events/list*')) ? 'active' : '' }}" href="{{ route('librarian.events.list') }}">
-                    <span>{{ get_phrase('Events') }}</span>
-                  </a>
-              </li>
-        
+              <li><a class="{{ (request()->is('librarian/noticeboard*')) ? 'active' : '' }}" href="{{ route('librarian.noticeboard.list') }}"><span>{{ get_phrase('Noticeboard') }}</span></a></li>
+              <li><a class="{{ (request()->is('librarian/events/list*')) ? 'active' : '' }}" href="{{ route('librarian.events.list') }}"><span>{{ get_phrase('Events') }}</span></a></li>
           </ul>
       </li>
 

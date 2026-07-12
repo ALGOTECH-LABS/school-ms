@@ -17,7 +17,7 @@ use App\Models\BookIssue;
                     <h4>{{ get_phrase('Book') }}</h4>
                     <ul class="d-flex align-items-center eBreadcrumb-2">
                         <li><a href="#">{{ get_phrase('Home') }}</a></li>
-                        <li><a href="#">{{ get_phrase('Back Office') }}</a></li>
+                        <li><a href="#">{{ get_phrase('Library') }}</a></li>
                         <li><a href="#">{{ get_phrase('Book') }}</a></li>
                     </ul>
                 </div>
@@ -119,7 +119,7 @@ use App\Models\BookIssue;
 		                @foreach ($books as $key => $book)
 			                <tr>
 			                	<td>{{ $books->firstItem() + $key }}</td>
-					            <td> <strong>{{ $book['name'] }}</strong> </td>
+					            <td> <a href="{{ route('librarian.book.history', ['id' => $book->id]) }}" style="color:#00955f;"><strong>{{ $book['name'] }}</strong></a> </td>
 					            <td> {{ $book['author'] }} </td>
 					            <td> {{ $book['copies'] }} </td>
 					            <td>
@@ -139,6 +139,9 @@ use App\Models\BookIssue;
 			                            <ul
 			                              class="dropdown-menu dropdown-menu-end eDropdown-menu-2 eDropdown-table-action"
 			                            >
+			                              <li>
+			                                <a class="dropdown-item" href="{{ route('librarian.book.history', ['id' => $book->id]) }}">{{ get_phrase('History') }}</a>
+			                              </li>
 			                              <li>
 			                                <a class="dropdown-item" href="javascript:;" onclick="rightModal('{{ route('librarian.edit.book', ['id' => $book->id]) }}', '{{ get_phrase('Edit Book') }}')">{{ get_phrase('Edit') }}</a>
 			                              </li>
@@ -180,7 +183,7 @@ use App\Models\BookIssue;
             @foreach ($books as $key => $book)
                 <tr>
                 	<td>{{ $books->firstItem() + $key }}</td>
-		            <td> <strong>{{ $book['name'] }}</strong> </td>
+		            <td> <a href="{{ route('librarian.book.history', ['id' => $book->id]) }}" style="color:#00955f;"><strong>{{ $book['name'] }}</strong></a> </td>
 		            <td> {{ $book['author'] }} </td>
 		            <td> {{ $book['copies'] }} </td>
 		            <td>

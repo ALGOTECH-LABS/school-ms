@@ -11,7 +11,7 @@
                     <h4>{{ get_phrase('Book Issue') }}</h4>
                     <ul class="d-flex align-items-center eBreadcrumb-2">
                         <li><a href="#">{{ get_phrase('Home') }}</a></li>
-                        <li><a href="#">{{ get_phrase('Back Office') }}</a></li>
+                        <li><a href="#">{{ get_phrase('Library') }}</a></li>
                         <li><a href="#">{{ get_phrase('Book Issue') }}</a></li>
                     </ul>
                 </div>
