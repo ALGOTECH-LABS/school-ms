@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\InstallController;
+use App\Http\Controllers\KohaController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\SuperAdminController;
 use App\Http\Controllers\AdminController;
@@ -1084,3 +1085,12 @@ Route::controller(InstallController::class)->group(function () {
 
 });
 //Installation routes end here
+
+// ===== Koha ILS integration =====
+Route::middleware(['auth'])->group(function () {
+    Route::get('student/library/catalog',   [KohaController::class, 'catalog'])->middleware('student')->name('student.koha.catalog');
+    Route::get('librarian/library/catalog', [KohaController::class, 'catalog'])->middleware('librarian')->name('librarian.koha.catalog');
+    Route::get('admin/library/catalog',     [KohaController::class, 'catalog'])->middleware('admin')->name('admin.koha.catalog');
+    Route::get('admin/koha',                [KohaController::class, 'adminPanel'])->middleware('admin')->name('admin.koha');
+    Route::post('admin/koha/sync',          [KohaController::class, 'runSync'])->middleware('admin')->name('admin.koha.sync');
+});

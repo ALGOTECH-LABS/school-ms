@@ -799,6 +799,12 @@ use App\Models\User;
                 {{ get_phrase('Book Issue Report') }}
               </span></a></li>
               @endif
+              <li><a class="{{ (request()->is('admin/library/catalog')) ? 'active' : '' }}" href="{{ route('admin.koha.catalog') }}"><span>
+                {{ get_phrase('Catalog Search') }}
+              </span></a></li>
+              <li><a class="{{ (request()->is('admin/koha')) ? 'active' : '' }}" href="{{ route('admin.koha') }}"><span>
+                {{ get_phrase('Koha Library') }}
+              </span></a></li>
               @if(empty($user->menu_permission) || in_array('admin.noticeboard.list', $menu_permission))
               <li><a class="{{ (request()->is('admin/noticeboard*')) ? 'active' : '' }}" href="{{ route('admin.noticeboard.list') }}"><span>
                 {{ get_phrase('Noticeboard') }}

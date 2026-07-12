@@ -493,7 +493,7 @@ class StudentController extends Controller
             $book_issues = BookIssue::where('issue_date', '>=', $date_from)
                 ->where('issue_date', '<=', $date_to)
                 ->where('school_id', auth()->user()->school_id)
-                ->where('session_id', $active_session)
+                ->where('student_id', auth()->user()->id)
                 ->get();
 
             return view('student.book.book_issue', ['book_issues' => $book_issues, 'date_from' => $date_from, 'date_to' => $date_to]);
@@ -504,7 +504,7 @@ class StudentController extends Controller
             $book_issues = BookIssue::where('issue_date', '>=', $date_from)
                 ->where('issue_date', '<=', $date_to)
                 ->where('school_id', auth()->user()->school_id)
-                ->where('session_id', $active_session)
+                ->where('student_id', auth()->user()->id)
                 ->get();
 
             return view('student.book.book_issue', ['book_issues' => $book_issues, 'date_from' => $date_from, 'date_to' => $date_to]);

@@ -136,6 +136,12 @@
               </li>
 
               <li>
+                <a class="{{ (request()->is('librarian/library/catalog')) ? 'active' : '' }}" href="{{ route('librarian.koha.catalog') }}">
+                  <span>{{ get_phrase('Catalog Search') }}</span>
+                </a>
+              </li>
+
+              <li>
                 <a class="{{ (request()->is('librarian/noticeboard*')) ? 'active' : '' }}" href="{{ route('librarian.noticeboard.list') }}">
                   <span>{{ get_phrase('Noticeboard') }}</span>
                 </a>
