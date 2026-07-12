@@ -1089,6 +1089,11 @@ Route::controller(InstallController::class)->group(function () {
 // ===== Koha ILS integration =====
 Route::middleware(['auth'])->group(function () {
     Route::get('student/library/catalog',   [KohaController::class, 'catalog'])->middleware('student')->name('student.koha.catalog');
+    Route::get('student/my-library',         [KohaController::class, 'myLibrary'])->middleware('student')->name('student.koha.mylibrary');
+    Route::get('teacher/library/catalog',    [KohaController::class, 'catalog'])->middleware('teacher')->name('teacher.koha.catalog');
+    Route::get('teacher/my-library',         [KohaController::class, 'myLibrary'])->middleware('teacher')->name('teacher.koha.mylibrary');
+    Route::get('parent/library/catalog',     [KohaController::class, 'catalog'])->middleware('parent')->name('parent.koha.catalog');
+    Route::get('parent/library',             [KohaController::class, 'parentLibrary'])->middleware('parent')->name('parent.koha.library');
     Route::get('librarian/library/catalog', [KohaController::class, 'catalog'])->middleware('librarian')->name('librarian.koha.catalog');
     Route::get('librarian/library/dashboard', [KohaController::class, 'librarianDashboard'])->middleware('librarian')->name('librarian.koha.dashboard');
     Route::get('librarian/library/patron', [KohaController::class, 'patronLookup'])->middleware('librarian')->name('librarian.koha.patron');
