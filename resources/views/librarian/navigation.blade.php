@@ -136,8 +136,23 @@
               </li>
 
               <li>
+                <a class="{{ (request()->is('librarian/library/dashboard')) ? 'active' : '' }}" href="{{ route('librarian.koha.dashboard') }}">
+                  <span>{{ get_phrase('Library Dashboard') }}</span>
+                </a>
+              </li>
+              <li>
+                <a class="{{ (request()->is('librarian/library/patron')) ? 'active' : '' }}" href="{{ route('librarian.koha.patron') }}">
+                  <span>{{ get_phrase('Patron Lookup') }}</span>
+                </a>
+              </li>
+              <li>
                 <a class="{{ (request()->is('librarian/library/catalog')) ? 'active' : '' }}" href="{{ route('librarian.koha.catalog') }}">
                   <span>{{ get_phrase('Catalog Search') }}</span>
+                </a>
+              </li>
+              <li>
+                <a class="{{ (request()->is('librarian/koha')) ? 'active' : '' }}" href="{{ route('librarian.koha.panel') }}">
+                  <span>{{ get_phrase('Koha Panel') }}</span>
                 </a>
               </li>
 
