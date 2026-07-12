@@ -62,6 +62,48 @@ class KohaController extends Controller
         ]);
     }
 
+    /* ---------------- shared: a user's Koha loans + fines ---------------- */
+    private function patronLoansAndFines($userId, Koha $koha): array
+    {
+        $map = \DB::table('koha_borrower_map')->where('user_id', $userId)->first();
+        $loans = $fines = [];
+        if ($map && $map->koha_borrowernumber && $koha->isConfigured()) {
+            $pid = $map->koha_borrowernumber;
+            foreach ($koha->checkouts($pid) as $co) {
+                $item = $koha->getItem($co['item_id'] ?? 0);
+                $co['barcode'] = $item['external_id'] ?? null;
+                $co['title']   = optional(\DB::table('books')->where('koha_biblionumber', $item['biblio_id'] ?? 0)->first())->name;
+                $loans[] = $co;
+            }
+            $fines = ($koha->account($pid)['outstanding_debits']['lines'] ?? []);
+        }
+        return [$loans, $fines];
+    }
+
+    /** Student / teacher self-service: my loans + fines. */
+    public function myLibrary(Koha $koha)
+    {
+        [$loans, $fines] = $this->patronLoansAndFines(auth()->id(), $koha);
+        return view('koha.my_library', [
+            'loans' => $loans, 'fines' => $fines,
+            'configured' => $koha->isConfigured(), 'opac' => $koha->opacUrl(),
+        ]);
+    }
+
+    /** Parent: each child's loans + fines. */
+    public function parentLibrary(Koha $koha)
+    {
+        $children = \DB::table('users')->where('parent_id', auth()->id())->where('role_id', 7)->get(['id', 'name', 'code']);
+        $kids = [];
+        foreach ($children as $c) {
+            [$loans, $fines] = $this->patronLoansAndFines($c->id, $koha);
+            $kids[] = ['child' => $c, 'loans' => $loans, 'fines' => $fines];
+        }
+        return view('koha.parent_library', [
+            'kids' => $kids, 'configured' => $koha->isConfigured(), 'opac' => $koha->opacUrl(),
+        ]);
+    }
+
     /* ---------------- book detail + borrowing history ---------------- */
     public function bookHistory($id, Koha $koha)
     {

@@ -1,6 +1,6 @@
 @php
   $rid = auth()->user()->role_id;
-  $nav = $rid == 7 ? 'student.navigation' : ($rid == 5 ? 'librarian.navigation' : 'admin.navigation');
+  $nav = [7=>'student.navigation', 5=>'librarian.navigation', 3=>'teacher.navigation', 6=>'parent.navigation'][$rid] ?? 'admin.navigation';
 @endphp
 @extends($nav)
 
