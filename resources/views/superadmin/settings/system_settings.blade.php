@@ -105,6 +105,37 @@
                                     <label for="vimeo_api_key" class="eForm-label">{{ get_phrase('Vimeo Api Key') }}</label>
                                     <input type="text" class="form-control eForm-control" value="{{ get_settings('vimeo_api_key') }}" id="vimeo_api_key" name = "vimeo_api_key" required>
                                 </div>
+                                <div class="fpb-7 pt-3" style="border-top:1px solid #eef1f0;margin-top:8px;">
+                                    <h6 style="font-weight:700;color:#00955f;margin:6px 0;"><i class="bi bi-book me-1"></i>{{ get_phrase('Library (Koha)') }}</h6>
+                                    <small class="text-muted">{{ get_phrase('Connect the Koha ILS. Leave blank to disable library integration.') }}</small>
+                                </div>
+                                <div class="fpb-7">
+                                    <label class="eForm-label">{{ get_phrase('Koha staff/API base URL') }}</label>
+                                    <input type="text" class="form-control eForm-control" value="{{ get_settings('koha_base_url') }}" name="koha_base_url" placeholder="https://koha-staff.example.org">
+                                </div>
+                                <div class="fpb-7">
+                                    <label class="eForm-label">{{ get_phrase('Koha OPAC URL') }}</label>
+                                    <input type="text" class="form-control eForm-control" value="{{ get_settings('koha_opac_url') }}" name="koha_opac_url" placeholder="https://koha.example.org">
+                                </div>
+                                <div class="fpb-7">
+                                    <label class="eForm-label">{{ get_phrase('API user (Basic auth)') }}</label>
+                                    <input type="text" class="form-control eForm-control" value="{{ get_settings('koha_api_user') }}" name="koha_api_user" autocomplete="off">
+                                </div>
+                                <div class="fpb-7">
+                                    <label class="eForm-label">{{ get_phrase('API password') }}</label>
+                                    <input type="password" class="form-control eForm-control" value="{{ get_settings('koha_api_pass') }}" name="koha_api_pass" autocomplete="new-password">
+                                </div>
+                                <div class="fpb-7">
+                                    <label class="eForm-label">{{ get_phrase('Library branch code') }}</label>
+                                    <input type="text" class="form-control eForm-control" value="{{ get_settings('koha_library_branch') }}" name="koha_library_branch" placeholder="KHMTC">
+                                </div>
+                                <div class="fpb-7">
+                                    <label class="eForm-label">{{ get_phrase('Student / Staff category codes') }}</label>
+                                    <div class="d-flex" style="gap:8px;">
+                                        <input type="text" class="form-control eForm-control" value="{{ get_settings('koha_patron_category_student') }}" name="koha_patron_category_student" placeholder="STU">
+                                        <input type="text" class="form-control eForm-control" value="{{ get_settings('koha_patron_category_staff') }}" name="koha_patron_category_staff" placeholder="STF">
+                                    </div>
+                                </div>
                                  <div class="fpb-7 pt-2">
                                     <button type="submit" class="btn-form">{{ get_phrase('Submit') }}</button>
                                 </div>
