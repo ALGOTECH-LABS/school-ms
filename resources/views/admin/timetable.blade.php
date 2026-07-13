@@ -27,6 +27,15 @@
   .tt-banner.bad{ background:#fdecec; color:#c0392b; border:1px solid #f5c9c4; }
   .tt-legend{ display:flex; gap:16px; flex-wrap:wrap; font-size:12px; color:#6c7385; margin:10px 2px 0; }
   .tt-legend .sw{ display:inline-block; width:12px; height:12px; border-radius:3px; margin-right:5px; vertical-align:middle; }
+  .tt-filters{ background:#fff; border:1px solid #eef0f4; border-radius:12px; padding:14px 16px; margin-bottom:16px;
+    display:flex; gap:14px; align-items:flex-end; flex-wrap:wrap; }
+  .tt-filters .fg{ display:flex; flex-direction:column; gap:5px; }
+  .tt-filters label{ font-size:11.5px; font-weight:700; color:#6c7385; text-transform:uppercase; letter-spacing:.3px; }
+  .tt-filters select{ min-width:190px; border:1px solid #e2e6ee; border-radius:9px; padding:9px 12px;
+    font-size:13.5px; color:#181c32; background:#fbfcfe; }
+  .tt-filters .clear{ font-size:13px; color:#8a92a5; text-decoration:none; padding:9px 4px; }
+  .tt-filters .clear:hover{ color:#f04b24; }
+  .tt-filters .fcount{ margin-left:auto; font-size:12.5px; color:#8a92a5; align-self:center; }
 </style>
 
 <div class="tt-hero">
@@ -42,6 +51,31 @@
     <i class="bi bi-pencil-square"></i> {{ get_phrase('Edit class routines') }}
   </a>
 </div>
+
+<form method="GET" action="{{ route('admin.timetable') }}" class="tt-filters" id="ttFilters">
+  <div class="fg">
+    <label for="f-class">{{ get_phrase('Course') }}</label>
+    <select name="class_id" id="f-class" onchange="document.getElementById('ttFilters').submit()">
+      <option value="">{{ get_phrase('All courses') }}</option>
+      @foreach($classes as $c)
+        <option value="{{ $c->id }}" {{ (string)$classId === (string)$c->id ? 'selected' : '' }}>{{ $c->name }}</option>
+      @endforeach
+    </select>
+  </div>
+  <div class="fg">
+    <label for="f-teacher">{{ get_phrase('Lecturer') }}</label>
+    <select name="teacher_id" id="f-teacher" onchange="document.getElementById('ttFilters').submit()">
+      <option value="">{{ get_phrase('All lecturers') }}</option>
+      @foreach($teachers as $t)
+        <option value="{{ $t->id }}" {{ (string)$teacherId === (string)$t->id ? 'selected' : '' }}>{{ $t->name }}</option>
+      @endforeach
+    </select>
+  </div>
+  @if($classId || $teacherId)
+    <a class="clear" href="{{ route('admin.timetable') }}"><i class="bi bi-x-circle"></i> {{ get_phrase('Clear filters') }}</a>
+  @endif
+  <span class="fcount">{{ $routines->count() }} {{ get_phrase('sessions shown') }}</span>
+</form>
 
 @if($clashCount > 0)
   <div class="tt-banner bad">

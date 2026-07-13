@@ -311,7 +311,7 @@ use App\Models\User;
         @endif
 
         @if(empty($user->menu_permission) || in_array('admin.daily_attendance', $menu_permission) || in_array('admin.class_list', $menu_permission) || in_array('admin.routine', $menu_permission) || in_array('admin.gradebook', $menu_permission) || in_array('admin.syllabus', $menu_permission) || in_array('admin.class_room_list', $menu_permission) || in_array('admin.department_list', $menu_permission))
-        <li class="nav-links-li {{ request()->is('admin/attendance*') || request()->is('admin/class_list*') || request()->is('admin/routine*') || request()->is('admin/subject*') || request()->is('admin/syllabus*') || request()->is('admin/gradebook*') || request()->is('admin/class_room*') || request()->is('admin/department*') ? 'showMenu':'' }}">
+        <li class="nav-links-li {{ request()->is('admin/attendance*') || request()->is('admin/class_list*') || request()->is('admin/routine*') || request()->is('admin/timetable') || request()->is('admin/subject*') || request()->is('admin/syllabus*') || request()->is('admin/gradebook*') || request()->is('admin/class_room*') || request()->is('admin/department*') ? 'showMenu':'' }}">
             <div class="iocn-link">
                 <a href="#">
                     <div class="sidebar_icon">
@@ -351,6 +351,9 @@ use App\Models\User;
               @if(empty($user->menu_permission) || in_array('admin.routine', $menu_permission))
               <li><a class="{{ (request()->is('admin/routine*')) ? 'active' : '' }}" href="{{ route('admin.routine') }}"><span>
                 {{ get_phrase('Class Routine') }}
+              </span></a></li>
+              <li><a class="{{ (request()->is('admin/timetable')) ? 'active' : '' }}" href="{{ route('admin.timetable') }}"><span>
+                {{ get_phrase('Master Timetable') }}
               </span></a></li>
               @endif
               @if(empty($user->menu_permission) || in_array('admin.subject_list', $menu_permission))
