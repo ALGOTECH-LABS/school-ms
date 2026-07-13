@@ -587,6 +587,113 @@ class FinanceController extends Controller
         return view('admin.finance.report_daybook', compact('txns', 'income', 'expense', 'from', 'to'));
     }
 
+    /* ---------- Period financial statements (monthly / quarterly / yearly I&E) ---------- */
+
+    // Epoch [from, to] bounds + a human label for a calendar period.
+    private function periodRange($period, $year, $month, $quarter)
+    {
+        if ($period === 'year') {
+            $from  = strtotime("$year-01-01 00:00:00");
+            $to    = strtotime("$year-12-31 23:59:59");
+            $label = get_phrase('Year') . ' ' . $year;
+        } elseif ($period === 'quarter') {
+            $startMonth = ($quarter - 1) * 3 + 1;
+            $start = sprintf('%d-%02d-01 00:00:00', $year, $startMonth);
+            $from  = strtotime($start);
+            $to    = strtotime($start . ' +3 months -1 second');
+            $label = 'Q' . $quarter . ' ' . $year;
+        } else { // month
+            $start = sprintf('%d-%02d-01 00:00:00', $year, $month);
+            $from  = strtotime($start);
+            $to    = strtotime($start . ' +1 month -1 second');
+            $label = date('F Y', $from);
+        }
+        return [$from, $to, $label];
+    }
+
+    // Shared aggregation used by both the screen view and the PDF export.
+    private function buildStatement(Request $request)
+    {
+        $sid     = $this->schoolId();
+        $period  = in_array($request->period, ['month', 'quarter', 'year']) ? $request->period : 'month';
+        $year    = (int) ($request->year ?: date('Y'));
+        $month   = (int) ($request->month ?: date('n'));
+        $quarter = (int) ($request->quarter ?: ceil(date('n') / 3));
+        if ($month < 1 || $month > 12) $month = (int) date('n');
+        if ($quarter < 1 || $quarter > 4) $quarter = (int) ceil(date('n') / 3);
+
+        [$from, $to, $label] = $this->periodRange($period, $year, $month, $quarter);
+
+        // I&E for the selected period (same shape as reportIncome)
+        $income = FinanceTransaction::where('school_id', $sid)->where('type', 'income')->whereBetween('txn_date', [$from, $to])
+            ->selectRaw('category, SUM(amount) as t')->groupBy('category')->orderByDesc('t')->get();
+        $expense = FinanceTransaction::where('school_id', $sid)->where('type', 'expense')->whereBetween('txn_date', [$from, $to])
+            ->selectRaw('category, SUM(amount) as t')->groupBy('category')->orderByDesc('t')->get();
+        $totalIncome  = (float) $income->sum('t');
+        $totalExpense = (float) $expense->sum('t');
+        $net = $totalIncome - $totalExpense;
+
+        // Month-by-month breakdown for the whole selected year (single pass, no N+1)
+        $yStart = strtotime("$year-01-01 00:00:00");
+        $yEnd   = strtotime("$year-12-31 23:59:59");
+        $monthly = [];
+        for ($m = 1; $m <= 12; $m++) $monthly[$m] = ['income' => 0.0, 'expense' => 0.0, 'net' => 0.0];
+        $yearTxns = FinanceTransaction::where('school_id', $sid)->whereBetween('txn_date', [$yStart, $yEnd])
+            ->get(['type', 'amount', 'txn_date']);
+        foreach ($yearTxns as $t) {
+            $m = (int) date('n', (int) $t->txn_date);
+            $monthly[$m][$t->type === 'expense' ? 'expense' : 'income'] += (float) $t->amount;
+        }
+        foreach ($monthly as $m => &$row) $row['net'] = $row['income'] - $row['expense'];
+        unset($row);
+
+        // quarter subtotals + year totals derived from the monthly buckets
+        $quarterly = [];
+        for ($q = 1; $q <= 4; $q++) $quarterly[$q] = ['income' => 0.0, 'expense' => 0.0, 'net' => 0.0];
+        $yearTotals = ['income' => 0.0, 'expense' => 0.0, 'net' => 0.0];
+        foreach ($monthly as $m => $row) {
+            $q = (int) ceil($m / 3);
+            foreach (['income', 'expense', 'net'] as $k) {
+                $quarterly[$q][$k] += $row[$k];
+                $yearTotals[$k]   += $row[$k];
+            }
+        }
+
+        // years present in the ledger, for the picker (fallback to current year)
+        $years = FinanceTransaction::where('school_id', $sid)
+            ->selectRaw('DISTINCT FROM_UNIXTIME(txn_date, "%Y") as y')->orderByDesc('y')->pluck('y')
+            ->map(fn ($y) => (int) $y)->filter()->values()->all();
+        if (!in_array($year, $years)) $years[] = $year;
+        rsort($years);
+
+        return compact(
+            'period', 'year', 'month', 'quarter', 'from', 'to', 'label',
+            'income', 'expense', 'totalIncome', 'totalExpense', 'net',
+            'monthly', 'quarterly', 'yearTotals', 'years'
+        );
+    }
+
+    public function statements(Request $request)
+    {
+        return view('admin.finance.statements', $this->buildStatement($request));
+    }
+
+    public function statementsPdf(Request $request)
+    {
+        $data = $this->buildStatement($request);
+
+        $school   = \DB::table('schools')->where('id', $this->schoolId())->first();
+        $logoFile = get_settings('dark_logo');
+        $logoPath = $logoFile ? public_path('assets/uploads/logo/' . $logoFile) : null;
+        if ($logoPath && !file_exists($logoPath)) $logoPath = null;
+        $data['school']   = $school;
+        $data['logoPath'] = $logoPath;
+
+        $pdf = \PDF::loadView('admin.finance.statement_pdf', $data);
+        $pdf->setPaper('a4');
+        return $pdf->download('Financial-Statement-' . str_replace(' ', '-', $data['label']) . '.pdf');
+    }
+
     /* ============================================================ EXPENSES */
 
     public function expenses()
