@@ -2029,6 +2029,20 @@ class AdminController extends Controller
         return view('admin.routine.routine_list', ['class_id' => $class_id, 'section_id' => $section_id, 'classes' => $classes]);
     }
 
+    /**
+     * Whole-school master timetable: every class routine for the running
+     * session on one grid, with teacher/room double-booking detection.
+     */
+    public function masterTimetable()
+    {
+        $session  = get_school_settings(auth()->user()->school_id)->value('running_session');
+        $routines = Routine::where('session_id', $session)
+            ->where('school_id', auth()->user()->school_id)
+            ->get();
+
+        return view('admin.timetable', ['routines' => $routines]);
+    }
+
     public function addRoutine()
     {
         $classes = Classes::get()->where('school_id', auth()->user()->school_id);

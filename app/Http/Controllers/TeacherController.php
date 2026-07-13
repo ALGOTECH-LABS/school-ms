@@ -169,6 +169,21 @@ class TeacherController extends Controller
             ->pluck('class_id')->unique()->values();
     }
 
+    /**
+     * The signed-in lecturer's own weekly timetable across every class they
+     * teach in the running session.
+     */
+    public function timetable()
+    {
+        $session  = get_school_settings(auth()->user()->school_id)->value('running_session');
+        $routines = Routine::where('teacher_id', auth()->user()->id)
+            ->where('session_id', $session)
+            ->where('school_id', auth()->user()->school_id)
+            ->get();
+
+        return view('teacher.timetable', ['routines' => $routines]);
+    }
+
     private function examRules()
     {
         return [
