@@ -351,6 +351,7 @@ Route::controller(AdminController::class)->middleware('admin','auth')->group(fun
 
     //Routine routes
     Route::get('admin/routine', 'routine')->name('admin.routine')->middleware('admin_permission');
+    Route::get('admin/timetable', 'masterTimetable')->name('admin.timetable')->middleware('admin_permission');
     Route::get('admin/routine/add_routine', 'addRoutine')->name('admin.routine.open_modal');
     Route::post('admin/routine/routine_add', 'routineAdd')->name('admin.routine.routine_add');
     Route::get('admin/routine/list', 'routineList')->name('admin.routine.routine_list');
@@ -601,6 +602,7 @@ Route::controller(TeacherController::class)->middleware('teacher','auth')->group
     //Routine routes
     Route::get('teacher/routine', 'routine')->name('teacher.routine');
     Route::get('teacher/routine/list', 'routineList')->name('teacher.routine.routine_list');
+    Route::get('teacher/timetable', 'timetable')->name('teacher.timetable');
 
 
     //Subject routes
