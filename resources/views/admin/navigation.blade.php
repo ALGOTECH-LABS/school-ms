@@ -386,7 +386,7 @@ use App\Models\User;
         @endif
 
         @if(empty($user->menu_permission) || in_array('admin.fee_manager.list', $menu_permission) || in_array('admin.offline_payment_pending', $menu_permission) || in_array('admin.expense.list', $menu_permission) || in_array('admin.expense.category_list', $menu_permission))
-        <li class="nav-links-li {{ request()->is('admin/fee_manager*') || request()->is('admin/offline_payment/pending*')|| request()->is('admin/expense_category*') || request()->is('admin/expenses*') ? 'showMenu':'' }}">
+        <li class="nav-links-li {{ request()->is('admin/fee_manager*') || request()->is('admin/offline_payment/pending*')|| request()->is('admin/expense_category*') || request()->is('admin/expenses*') || request()->is('admin/finance/statements*') ? 'showMenu':'' }}">
             <div class="iocn-link">
                 <a href="#">
                     <div class="sidebar_icon">
@@ -421,6 +421,9 @@ use App\Models\User;
               </span></a></li>
               <li><a class="{{ (request()->is('admin/finance/reports*')) ? 'active' : '' }}" href="{{ route('admin.finance.report.income') }}"><span>
                 {{ get_phrase('Reports & Statements') }}
+              </span></a></li>
+              <li><a class="{{ (request()->is('admin/finance/statements*')) ? 'active' : '' }}" href="{{ route('admin.finance.statements') }}"><span>
+                {{ get_phrase('Financial Statements') }}
               </span></a></li>
               <li><a class="{{ (request()->is('admin/finance/structure*')) ? 'active' : '' }}" href="{{ route('admin.finance.structures') }}"><span>
                 {{ get_phrase('Fee Structures') }}

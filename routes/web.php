@@ -1015,6 +1015,8 @@ Route::controller(FinanceController::class)->group(function () {
         Route::get('admin/finance/reports/collection', 'reportCollection')->name('admin.finance.report.collection');
         Route::get('admin/finance/reports/defaulters', 'reportDefaulters')->name('admin.finance.report.defaulters');
         Route::get('admin/finance/reports/daybook', 'reportDaybook')->name('admin.finance.report.daybook');
+        Route::get('admin/finance/statements', 'statements')->name('admin.finance.statements');
+        Route::get('admin/finance/statements/pdf', 'statementsPdf')->name('admin.finance.statements.pdf');
 
         // expenses + other income
         Route::get('admin/finance/expenses', 'expenses')->name('admin.finance.expenses');

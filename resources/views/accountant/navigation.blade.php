@@ -125,6 +125,7 @@
                     <li><a class="{{ request()->is('admin/finance/dashboard*') ? 'active' : '' }}" href="{{ route('admin.finance.dashboard') }}"><span>{{ get_phrase('Finance Dashboard') }}</span></a></li>
                     <li><a class="{{ (request()->is('admin/finance/invoices*') || request()->is('admin/finance/statement*') || request()->is('admin/finance/receipt*')) ? 'active' : '' }}" href="{{ route('admin.finance.invoices') }}"><span>{{ get_phrase('Invoices & Payments') }}</span></a></li>
                     <li><a class="{{ request()->is('admin/finance/reports*') ? 'active' : '' }}" href="{{ route('admin.finance.report.income') }}"><span>{{ get_phrase('Reports & Statements') }}</span></a></li>
+                    <li><a class="{{ request()->is('admin/finance/statements*') ? 'active' : '' }}" href="{{ route('admin.finance.statements') }}"><span>{{ get_phrase('Financial Statements') }}</span></a></li>
                     <li><a class="{{ request()->is('admin/finance/structure*') ? 'active' : '' }}" href="{{ route('admin.finance.structures') }}"><span>{{ get_phrase('Fee Structures') }}</span></a></li>
                     <li><a class="{{ request()->is('admin/finance/fee-heads*') ? 'active' : '' }}" href="{{ route('admin.finance.fee_heads') }}"><span>{{ get_phrase('Fee Heads') }}</span></a></li>
                     <li><a class="{{ request()->is('admin/finance/budget*') ? 'active' : '' }}" href="{{ route('admin.finance.budgets') }}"><span>{{ get_phrase('Budgets') }}</span></a></li>
