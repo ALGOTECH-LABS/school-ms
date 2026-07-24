@@ -228,8 +228,9 @@ class FinanceController extends Controller
         $student = User::find($invoice->student_id);
         $class = Classes::find($invoice->class_id);
         $section = Section::find($invoice->section_id);
-        $methods = \DB::table('payment_methods')->where('school_id', $this->schoolId())->pluck('name')->toArray();
-        if (empty($methods)) $methods = ['cash', 'bank', 'mobile money', 'cheque'];
+        // Recording a *received* payment is a manual/offline entry — only the
+        // two channels this college actually uses.
+        $methods = ['mpesa' => 'M-Pesa', 'bank' => 'Bank transfer'];
         $accounts = Account::where('school_id', $this->schoolId())->orderBy('name')->get();
         return view('admin.finance.invoice_show', compact('invoice', 'student', 'class', 'section', 'methods', 'accounts'));
     }

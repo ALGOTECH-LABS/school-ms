@@ -1117,7 +1117,54 @@ class AdminController extends Controller
     public function createStudentModal()
     {
         $classes = Classes::get()->where('school_id', auth()->user()->school_id);
-        return view('admin.student.add_student', ['classes' => $classes]);
+        $parents = User::where(['role_id' => 6, 'school_id' => auth()->user()->school_id])->orderBy('name')->get();
+        return view('admin.student.add_student', ['classes' => $classes, 'parents' => $parents]);
+    }
+
+    /**
+     * Resolve the parent for a student being admitted.
+     * parent_mode = existing | new | none. Returns an int parent id, null,
+     * or ['error' => message] (dup email) so the caller can abort cleanly.
+     */
+    private function resolveParentId(Request $request)
+    {
+        $mode = $request->parent_mode ?? 'none';
+
+        if ($mode === 'existing') {
+            $pid = $request->parent_id;
+            $ok = $pid && User::where('id', $pid)->where('role_id', 6)
+                ->where('school_id', auth()->user()->school_id)->exists();
+            return $ok ? (int) $pid : null;
+        }
+
+        if ($mode === 'new') {
+            $request->validate([
+                'parent_name'     => 'required|string|max:255',
+                'parent_email'    => 'required|email',
+                'parent_password' => 'required|string|min:4',
+            ]);
+
+            if (User::where('email', $request->parent_email)->count() > 0) {
+                return ['error' => get_phrase('A user already exists with the parent email') . ' ' . $request->parent_email . '.'];
+            }
+
+            $info = json_encode([
+                'gender' => '', 'blood_group' => '', 'birthday' => '',
+                'phone' => $request->parent_phone ?? '', 'address' => '', 'photo' => '',
+            ]);
+            $parent = User::create([
+                'name'             => $request->parent_name,
+                'email'            => $request->parent_email,
+                'password'         => Hash::make($request->parent_password),
+                'role_id'          => 6,
+                'school_id'        => auth()->user()->school_id,
+                'user_information' => $info,
+                'status'           => 1,
+            ]);
+            return $parent->id;
+        }
+
+        return null; // 'none'
     }
 
     public function studentCreate(Request $request)
@@ -1146,21 +1193,39 @@ class AdminController extends Controller
         $data['user_information'] = json_encode($info);
         $duplicate_user_check = User::get()->where('email', $data['email']);
 
-        if(count($duplicate_user_check) == 0) {
+        if(count($duplicate_user_check) > 0) {
+            return redirect()->back()->with('error','Email was already taken.');
+        }
 
-        User::create([
+        // resolve the parent (existing / new / none) BEFORE creating the student
+        $parentResult = $this->resolveParentId($request);
+        if (is_array($parentResult)) {
+            return redirect()->back()->with('error', $parentResult['error']);
+        }
+
+        $student = User::create([
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
             'code' => student_code(),
             'role_id' => '7',
+            'parent_id' => $parentResult,
             'school_id' => auth()->user()->school_id,
             'user_information' => $data['user_information'],
             'status' => 1,
         ]);
-    } else {
-        return redirect()->back()->with('error','Email was already taken.');
-    }
+
+        // enrol the student into the chosen class/section (the modal collected them)
+        if (!empty($data['class_id']) && !empty($data['section_id'])) {
+            Enrollment::create([
+                'user_id'    => $student->id,
+                'class_id'   => $data['class_id'],
+                'section_id' => $data['section_id'],
+                'school_id'  => auth()->user()->school_id,
+                'session_id' => get_school_settings(auth()->user()->school_id)->value('running_session'),
+            ]);
+        }
+
     if(!empty(get_settings('smtp_user')) && (get_settings('smtp_pass')) && (get_settings('smtp_host')) && (get_settings('smtp_port'))){
         Mail::to($data['email'])->send(new NewUserEmail($data));
     }
@@ -1189,7 +1254,7 @@ class AdminController extends Controller
     public function studentUpdate(Request $request, $id)
     {
         $data = $request->all();
-        $data['student_info'] = json_encode(array_filter($request->student_info));
+        $data['student_info'] = json_encode(array_filter($request->student_info ?? []));
          if(!empty($data['photo'])){
 
             $imageName = time().'.'.$data['photo']->extension();
@@ -1340,7 +1405,7 @@ class AdminController extends Controller
      */
     public function offlineAdmissionForm($type = '')
     {   
-        $data['parents'] = User::where(['role_id' => 6,'school_id' => 1])->get();
+        $data['parents'] = User::where(['role_id' => 6, 'school_id' => auth()->user()->school_id])->orderBy('name')->get();
         $data['departments'] = Department::get()->where('school_id', auth()->user()->school_id);
         $data['classes'] = Classes::get()->where('school_id', auth()->user()->school_id);
         return view('admin.offline_admission.offline_admission', ['aria_expand' => $type, 'data' => $data]);
@@ -1383,11 +1448,17 @@ class AdminController extends Controller
         );
         $data['user_information'] = json_encode($info);
 
-        $data['student_info'] = json_encode(array_filter($request->student_info));
+        $data['student_info'] = json_encode(array_filter($request->student_info ?? []));
 
         $duplicate_user_check = User::get()->where('email', $data['email']);
 
         if(count($duplicate_user_check) == 0) {
+
+            // resolve the parent (existing / new / none) before creating the student
+            $parentResult = $this->resolveParentId($request);
+            if (is_array($parentResult)) {
+                return redirect()->back()->with('error', $parentResult['error']);
+            }
 
             $user = User::create([
                 'name' => $data['name'],
@@ -1395,6 +1466,7 @@ class AdminController extends Controller
                 'password' => Hash::make($data['password']),
                 'code' => student_code(),
                 'role_id' => '7',
+                'parent_id' => $parentResult,
                 'school_id' => auth()->user()->school_id,
                 'user_information' => $data['user_information'],
                 'student_info'     => $data['student_info'],
@@ -5015,9 +5087,10 @@ class AdminController extends Controller
         $classes = Classes::where('school_id', auth()->user()->school_id)->get();
         $sessions = Session::where('school_id', auth()->user()->school_id)->get();
 
+        // all students in the selected class+section so "Print all" covers everyone (not just one page)
         $enroll_students = Enrollment::where('class_id', $page_data['class_id'])
         ->where('section_id', $page_data['section_id'])
-        ->paginate(10);
+        ->get();
 
         $selected_admit_card = AdmitCard::where('id', $data['admit_card_id'])->first();
         $page_data['classes'] = Classes::where('school_id', auth()->user()->school_id)->get();

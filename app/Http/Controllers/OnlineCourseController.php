@@ -14,6 +14,13 @@ use App\Models\TeacherPermission;
 use App\Models\Syllabus;
 use App\Models\Assignment;
 use App\Models\AssignmentSubmission;
+use App\Models\AssignmentQuestion;
+use App\Models\Question;
+use App\Models\Exam;
+use App\Models\ExamCategory;
+use App\Models\ExamQuestion;
+use App\Models\Gradebook;
+use App\Models\DailyAttendances;
 use App\Models\CourseSession;
 use App\Models\CourseRemoval;
 use App\Models\Section;
@@ -38,6 +45,14 @@ class OnlineCourseController extends Controller
             ->where('teacher_id', auth()->user()->id)
             ->where('school_id', $this->schoolId())
             ->firstOrFail();
+    }
+
+    /** Subject ids in this school sharing the given subject's name (bank is reusable across classes). */
+    private function sameNameSubjectIds($subject_id)
+    {
+        $name = Subject::where('id', $subject_id)->value('name');
+        if (!$name) return [$subject_id];
+        return Subject::where('school_id', $this->schoolId())->where('name', $name)->pluck('id')->all();
     }
 
     /* ===================================================================== TEACHER */
@@ -125,8 +140,9 @@ class OnlineCourseController extends Controller
             });
         $className = optional(Classes::find($course->class_id))->name;
 
-        // Coursework = assignments the teacher set for this course's class + subject.
-        $coursework = Assignment::where('class_id', $course->class_id)
+        // All work the teacher set for this course's class + subject,
+        // split into coursework (assignments) and CATs/exams (quizzes).
+        $allWork = Assignment::where('class_id', $course->class_id)
             ->where('subject_id', $course->subject_id)
             ->where('teacher_id', auth()->user()->id)
             ->where('school_id', $course->school_id)
@@ -137,9 +153,38 @@ class OnlineCourseController extends Controller
                 $a->graded_count     = (clone $subs)->whereNotNull('graded_at')->count();
                 return $a;
             });
+        $coursework = $allWork->where('is_quiz', 0)->values();
+        $cats       = $allWork->where('is_quiz', 1)->values();
 
-        // Per-student coursework progress (submitted / total coursework).
-        $courseworkIds  = $coursework->pluck('id');
+        // question count per CAT
+        $qCounts = AssignmentQuestion::whereIn('assignment_id', $cats->pluck('id'))
+            ->selectRaw('assignment_id, COUNT(*) c')->groupBy('assignment_id')->pluck('c', 'assignment_id');
+        $cats = $cats->map(function ($c) use ($qCounts) {
+            $c->question_count = (int) ($qCounts[$c->id] ?? 0);
+            return $c;
+        });
+
+        // Sitting CATs / physical exams for this course's class + subject (marks via gradebook).
+        $sittingCats = Exam::where('exam_type', 'offline')
+            ->where('class_id', $course->class_id)
+            ->where('subject_id', $course->subject_id)
+            ->where('school_id', $course->school_id)
+            ->where('session_id', $this->activeSession())
+            ->orderByDesc('starting_time')->get()
+            ->map(function ($e) use ($course) {
+                // students already marked for this exam's category+subject
+                $e->marked_count = Gradebook::where('exam_category_id', $e->exam_category_id)
+                    ->where('class_id', $e->class_id)
+                    ->where('session_id', $e->session_id)
+                    ->where('school_id', $e->school_id)
+                    ->where('marks', 'LIKE', '%"' . $course->subject_id . '":%')
+                    ->count();
+                $e->question_count = ExamQuestion::where('exam_id', $e->id)->count();
+                return $e;
+            });
+
+        // Per-student progress (submitted / total work — coursework + CATs).
+        $courseworkIds  = $allWork->pluck('id');
         $totalCoursework = $courseworkIds->count();
         $submittedByUser = $totalCoursework
             ? AssignmentSubmission::whereIn('assignment_id', $courseworkIds)
@@ -167,7 +212,7 @@ class OnlineCourseController extends Controller
             ->sortByDesc('session_date')->values();
 
         return view('teacher.courses.manage', compact(
-            'course', 'students', 'className', 'coursework', 'totalCoursework', 'upcoming', 'past', 'removedCount'
+            'course', 'students', 'className', 'coursework', 'cats', 'sittingCats', 'totalCoursework', 'upcoming', 'past', 'removedCount'
         ));
     }
 
@@ -231,6 +276,427 @@ class OnlineCourseController extends Controller
 
         return redirect()->route('teacher.addons.course.manage', $course->id)
             ->with('message', get_phrase('Coursework added to') . ' ' . $course->title . '.');
+    }
+
+    /* ---- CATs / exams (course-scoped online CAT creation; class + subject fixed) ---- */
+
+    public function catCreateModal($course_id)
+    {
+        $course   = $this->ownedCourse($course_id);
+        $class    = Classes::find($course->class_id);
+        $subject  = Subject::find($course->subject_id);
+        $sections = Section::where('class_id', $course->class_id)->orderBy('id')->get();
+
+        // how many questions the bank holds for this subject (creation hint)
+        $bankCount = Question::where('school_id', $this->schoolId())
+            ->whereIn('subject_id', $this->sameNameSubjectIds($course->subject_id))->count();
+
+        return view('teacher.courses.cat_modal', compact('course', 'class', 'subject', 'sections', 'bankCount'));
+    }
+
+    public function catStore(Request $request)
+    {
+        $course = $this->ownedCourse($request->course_id);
+        $data = $request->validate([
+            'title'            => 'required|string|max:255',
+            'section_id'       => 'required|string', // section id or "all"
+            'count'            => 'required|integer|min:1|max:100',
+            'difficulty'       => 'nullable|in:easy,medium,hard',
+            'qtype'            => 'nullable|in:mcq,truefalse,short,essay',
+            'topic'            => 'nullable|string|max:255',
+            'duration_minutes' => 'nullable|integer|min:1|max:600',
+            'deadline'         => 'nullable|date',
+        ]);
+
+        // "start empty" skips the random draw — the teacher hand-picks questions afterwards
+        $startEmpty = (bool) $request->start_empty;
+
+        // draw the paper ONCE — every section sits the same set of questions
+        $pool = $startEmpty ? collect() : Question::where('school_id', $this->schoolId())
+            ->whereIn('subject_id', $this->sameNameSubjectIds($course->subject_id))
+            ->when($data['difficulty'] ?? null, fn ($q, $d) => $q->where('difficulty', $d))
+            ->when($data['topic'] ?? null, fn ($q, $t) => $q->where('topic', 'LIKE', "%{$t}%"))
+            ->when($data['qtype'] ?? null, fn ($q, $t) => $q->where('type', $t))
+            ->inRandomOrder()->limit((int) $data['count'])->get();
+
+        if (!$startEmpty && $pool->count() === 0) {
+            return redirect()->back()->with('error',
+                get_phrase('No questions match those filters — add questions to the bank first, or tick "Start empty".'));
+        }
+
+        $sectionIds = $data['section_id'] === 'all'
+            ? Section::where('class_id', $course->class_id)->pluck('id')->all()
+            : [(int) $data['section_id']];
+
+        $total    = (int) $pool->sum('marks');
+        $deadline = !empty($data['deadline']) ? strtotime($data['deadline']) : null;
+        $firstQuizId = null;
+
+        foreach ($sectionIds as $sid) {
+            $assignment = Assignment::create([
+                'school_id'   => $course->school_id,
+                'session_id'  => $this->activeSession(),
+                'teacher_id'  => auth()->user()->id,
+                'class_id'    => $course->class_id,
+                'section_id'  => $sid,
+                'subject_id'  => $course->subject_id,
+                'title'       => $data['title'],
+                'description' => 'Online CAT — answer all questions.',
+                'total_marks' => $total,
+                'deadline'    => $deadline,
+                'duration_minutes' => !empty($data['duration_minutes']) ? (int) $data['duration_minutes'] : null,
+                'status'      => 'published',
+                'is_quiz'     => 1,
+            ]);
+
+            $firstQuizId = $firstQuizId ?: $assignment->id;
+            $so = 1;
+            foreach ($pool as $q) {
+                AssignmentQuestion::create([
+                    'assignment_id' => $assignment->id,
+                    'question_id'   => $q->id,
+                    'marks'         => $q->marks,
+                    'sort_order'    => $so++,
+                ]);
+            }
+        }
+
+        // empty CAT → go straight to the question picker
+        if ($startEmpty) {
+            return redirect()->route('teacher.quiz.questions', $firstQuizId)
+                ->with('message', get_phrase('CAT created empty — now pick or write its questions.'));
+        }
+
+        return redirect(route('teacher.addons.course.manage', $course->id) . '#tab-cats')
+            ->with('message', get_phrase('CAT created with') . ' ' . $pool->count() . ' ' . get_phrase('questions for') . ' ' . count($sectionIds) . ' ' . get_phrase('section(s).'));
+    }
+
+    /* ---- sitting CAT / physical exam (course-scoped offline Exam; marks via gradebook) ---- */
+
+    public function sittingCatCreateModal($course_id)
+    {
+        $course  = $this->ownedCourse($course_id);
+        $class   = Classes::find($course->class_id);
+        $subject = Subject::find($course->subject_id);
+
+        $categories = ExamCategory::where('school_id', $this->schoolId())
+            ->where('session_id', $this->activeSession())->orderBy('name')->get();
+
+        return view('teacher.courses.sitting_cat_modal', compact('course', 'class', 'subject', 'categories'));
+    }
+
+    public function sittingCatStore(Request $request)
+    {
+        $course = $this->ownedCourse($request->course_id);
+        $data = $request->validate([
+            'title'            => 'required|string|max:255',
+            'exam_category_id' => 'required|string',       // category id or "new"
+            'starting_at'      => 'required|date',
+            'ending_at'        => 'required|date|after:starting_at',
+            'room_number'      => 'nullable|string|max:255',
+            'total_marks'      => 'required|integer|min:1|max:1000',
+        ]);
+
+        // Marks live in the gradebook keyed by (exam_category, subject) — a new
+        // category per CAT keeps papers from overwriting each other's marks.
+        if ($data['exam_category_id'] === 'new') {
+            $category = ExamCategory::create([
+                'name'       => $data['title'],
+                'school_id'  => $this->schoolId(),
+                'session_id' => $this->activeSession(),
+                'timestamp'  => strtotime(date('Y-m-d')),
+            ]);
+        } else {
+            $category = ExamCategory::where('id', (int) $data['exam_category_id'])
+                ->where('school_id', $this->schoolId())->firstOrFail();
+        }
+
+        Exam::create([
+            'name'             => $data['title'],
+            'exam_category_id' => $category->id,
+            'exam_type'        => 'offline',
+            'room_number'      => $data['room_number'] ?? '',
+            'starting_time'    => strtotime($data['starting_at']),
+            'ending_time'      => strtotime($data['ending_at']),
+            'total_marks'      => $data['total_marks'],
+            'status'           => 'pending',
+            'class_id'         => $course->class_id,
+            'subject_id'       => $course->subject_id,
+            'school_id'        => $course->school_id,
+            'session_id'       => $this->activeSession(),
+        ]);
+
+        return redirect(route('teacher.addons.course.manage', $course->id) . '#tab-cats')
+            ->with('message', get_phrase('Sitting CAT scheduled — set its questions and enter marks from the CATs & Exams tab.'));
+    }
+
+    /* ================= sitting exam: questions + printable paper + in-place marks ================= */
+
+    /** An offline exam whose class+subject the teacher owns a course for (else 404). */
+    private function ownedExam($id)
+    {
+        $exam = Exam::where('id', $id)->where('exam_type', 'offline')
+            ->where('school_id', $this->schoolId())->firstOrFail();
+        Course::where('class_id', $exam->class_id)->where('subject_id', $exam->subject_id)
+            ->where('teacher_id', auth()->user()->id)->where('school_id', $this->schoolId())->firstOrFail();
+        return $exam;
+    }
+
+    private function recomputeExamMarks($exam)
+    {
+        $sum = (int) ExamQuestion::where('exam_id', $exam->id)->sum('marks');
+        if ($sum > 0) $exam->update(['total_marks' => $sum]);
+    }
+
+    private function examCourse($exam)
+    {
+        return Course::where('class_id', $exam->class_id)->where('subject_id', $exam->subject_id)
+            ->where('teacher_id', auth()->user()->id)->where('school_id', $this->schoolId())->first();
+    }
+
+    public function sittingCatQuestions(Request $request, $id)
+    {
+        $exam = $this->ownedExam($id);
+
+        $attached = ExamQuestion::where('exam_id', $exam->id)->orderBy('sort_order')->get()
+            ->map(function ($eq) { $eq->q = Question::find($eq->question_id); return $eq; })
+            ->filter(fn ($eq) => $eq->q)->values();
+
+        $subjectIds = $this->sameNameSubjectIds($exam->subject_id);
+        $search = trim((string) $request->get('q', ''));
+        $bankTotal = Question::where('school_id', $this->schoolId())->whereIn('subject_id', $subjectIds)
+            ->whereNotIn('id', $attached->pluck('question_id'))->count();
+        $bank = Question::where('school_id', $this->schoolId())->whereIn('subject_id', $subjectIds)
+            ->whereNotIn('id', $attached->pluck('question_id'))
+            ->when($search !== '', fn ($qq) => $qq->where(function ($w) use ($search) {
+                $w->where('question', 'LIKE', "%{$search}%")->orWhere('topic', 'LIKE', "%{$search}%");
+            }))
+            ->orderByDesc('id')->paginate(8)->appends(['q' => $search]);
+
+        return view('teacher.courses.sitting_cat_questions', [
+            'exam' => $exam, 'attached' => $attached, 'bank' => $bank, 'bankTotal' => $bankTotal, 'search' => $search,
+            'course' => $this->examCourse($exam),
+            'className'   => optional(Classes::find($exam->class_id))->name,
+            'subjectName' => optional(Subject::find($exam->subject_id))->name,
+            'categoryName'=> optional(ExamCategory::find($exam->exam_category_id))->name,
+        ]);
+    }
+
+    public function sittingCatQuestionAdd(Request $request)
+    {
+        $exam = $this->ownedExam($request->exam_id);
+        $q = Question::where('id', $request->question_id)->where('school_id', $this->schoolId())->firstOrFail();
+        if (!ExamQuestion::where('exam_id', $exam->id)->where('question_id', $q->id)->exists()) {
+            ExamQuestion::create([
+                'exam_id'     => $exam->id,
+                'question_id' => $q->id,
+                'marks'       => $q->marks,
+                'sort_order'  => (int) ExamQuestion::where('exam_id', $exam->id)->max('sort_order') + 1,
+            ]);
+            $this->recomputeExamMarks($exam);
+        }
+        return redirect()->route('teacher.addons.course.sitting_cat.questions', $exam->id)
+            ->with('message', get_phrase('Question added to the exam paper.'));
+    }
+
+    public function sittingCatQuestionRemove(Request $request)
+    {
+        $exam = $this->ownedExam($request->exam_id);
+        ExamQuestion::where('exam_id', $exam->id)->where('question_id', $request->question_id)->delete();
+        $this->recomputeExamMarks($exam);
+        return redirect()->route('teacher.addons.course.sitting_cat.questions', $exam->id)
+            ->with('message', get_phrase('Question removed from the exam paper.'));
+    }
+
+    public function sittingCatPaper(Request $request, $id)
+    {
+        $exam = $this->ownedExam($id);
+        $attached = ExamQuestion::where('exam_id', $exam->id)->orderBy('sort_order')->get()
+            ->map(function ($eq) { $eq->q = Question::find($eq->question_id); return $eq; })
+            ->filter(fn ($eq) => $eq->q)->values();
+
+        $school   = \DB::table('schools')->where('id', $this->schoolId())->first();
+        $logoFile = get_settings('dark_logo');
+        $logoUrl  = ($logoFile && file_exists(public_path('assets/uploads/logo/' . $logoFile)))
+            ? asset('assets/uploads/logo/' . $logoFile) : null;
+
+        return view('teacher.courses.sitting_cat_paper', [
+            'exam' => $exam, 'attached' => $attached, 'school' => $school, 'logoUrl' => $logoUrl,
+            'answers' => (bool) $request->get('answers'),
+            'className'   => optional(Classes::find($exam->class_id))->name,
+            'subjectName' => optional(Subject::find($exam->subject_id))->name,
+        ]);
+    }
+
+    public function sittingCatMarks($id)
+    {
+        $exam = $this->ownedExam($id);
+
+        // roster: every student in the exam's class (all sections), with section name
+        $enrollments = Enrollment::where('class_id', $exam->class_id)->where('school_id', $exam->school_id)->get();
+        $sectionNames  = Section::whereIn('id', $enrollments->pluck('section_id'))->pluck('name', 'id');
+        $sectionByUser = $enrollments->pluck('section_id', 'user_id');
+        $students = User::whereIn('id', $enrollments->pluck('user_id'))->where('role_id', 7)->orderBy('name')->get()
+            ->map(function ($s) use ($sectionByUser, $sectionNames) {
+                $s->section_id   = $sectionByUser[$s->id] ?? null;
+                $s->section_name = $sectionNames[$s->section_id] ?? '-';
+                return $s;
+            });
+
+        // prefill existing gradebook marks for this exam-category + subject
+        $gradebooks = Gradebook::where('exam_category_id', $exam->exam_category_id)
+            ->where('class_id', $exam->class_id)->where('session_id', $exam->session_id)
+            ->where('school_id', $exam->school_id)->get()->keyBy('student_id');
+        $existing = [];
+        foreach ($gradebooks as $sid => $g) {
+            $marks = json_decode($g->marks, true) ?: [];
+            if (isset($marks[$exam->subject_id])) $existing[$sid] = $marks[$exam->subject_id];
+        }
+
+        return view('teacher.courses.sitting_cat_marks', [
+            'exam' => $exam, 'students' => $students, 'existing' => $existing,
+            'course' => $this->examCourse($exam),
+            'className'   => optional(Classes::find($exam->class_id))->name,
+            'subjectName' => optional(Subject::find($exam->subject_id))->name,
+            'categoryName'=> optional(ExamCategory::find($exam->exam_category_id))->name,
+        ]);
+    }
+
+    public function sittingCatMarksSave(Request $request)
+    {
+        $exam    = $this->ownedExam($request->exam_id);
+        $scores  = $request->score ?? [];      // [student_id => mark]
+        $max     = (int) $exam->total_marks;
+        $saved   = 0;
+
+        foreach ($scores as $student_id => $val) {
+            if ($val === '' || $val === null) continue;              // skip blanks
+            $mark = max(0, min((float) $val, $max));                 // clamp 0..total
+
+            $enroll = Enrollment::where('user_id', $student_id)->where('class_id', $exam->class_id)
+                ->where('school_id', $exam->school_id)->first();
+            if (!$enroll) continue;
+
+            // upsert the student's gradebook row (feeds report cards / transcripts)
+            $g = Gradebook::where('exam_category_id', $exam->exam_category_id)
+                ->where('class_id', $exam->class_id)->where('section_id', $enroll->section_id)
+                ->where('student_id', $student_id)->where('school_id', $exam->school_id)
+                ->where('session_id', $exam->session_id)->first();
+
+            if ($g) {
+                $marks = json_decode($g->marks, true) ?: [];
+                $marks[$exam->subject_id] = $mark;
+                $g->update(['marks' => json_encode($marks)]);
+            } else {
+                Gradebook::create([
+                    'class_id'         => $exam->class_id,
+                    'section_id'       => $enroll->section_id,
+                    'student_id'       => $student_id,
+                    'exam_category_id' => $exam->exam_category_id,
+                    'marks'            => json_encode([$exam->subject_id => $mark]),
+                    'comment'          => '',
+                    'school_id'        => $exam->school_id,
+                    'session_id'       => $exam->session_id,
+                    'timestamp'        => strtotime(date('Y-m-d')),
+                ]);
+            }
+            $saved++;
+        }
+
+        return redirect()->route('teacher.addons.course.sitting_cat.marks', $exam->id)
+            ->with('message', $saved . ' ' . get_phrase('student mark(s) saved — they now appear on report cards & transcripts.'));
+    }
+
+    /* ================= course daily attendance (students on the course = the class) ================= */
+
+    public function courseAttendance(Request $request, $id)
+    {
+        $course = $this->ownedCourse($id);
+
+        // date (app tz midnight); default today
+        $dateStr = $request->date ?: date('Y-m-d');
+        $ts = strtotime(date('Y-m-d', strtotime($dateStr)));
+
+        // roster: every student on the course's class, with their section
+        $enrollments = Enrollment::where('class_id', $course->class_id)->where('school_id', $course->school_id)->get();
+        $sectionNames  = Section::whereIn('id', $enrollments->pluck('section_id'))->pluck('name', 'id');
+        $sectionByUser = $enrollments->pluck('section_id', 'user_id');
+        $students = User::whereIn('id', $enrollments->pluck('user_id'))->where('role_id', 7)->orderBy('name')->get()
+            ->map(function ($s) use ($sectionByUser, $sectionNames) {
+                $s->section_id   = $sectionByUser[$s->id] ?? null;
+                $s->section_name = $sectionNames[$s->section_id] ?? '-';
+                return $s;
+            });
+
+        // existing marks for that day
+        $marks = DailyAttendances::where('class_id', $course->class_id)->where('timestamp', $ts)
+            ->where('school_id', $course->school_id)->get()->keyBy('student_id');
+        $existing = $marks->map(fn ($m) => (int) $m->status);        // student_id => status(1/0)
+        $anyMarked = $marks->count() > 0;
+
+        return view('teacher.courses.attendance', [
+            'course' => $course, 'students' => $students, 'existing' => $existing,
+            'date' => date('Y-m-d', $ts), 'anyMarked' => $anyMarked,
+            'className'   => optional(Classes::find($course->class_id))->name,
+            'subjectName' => optional(Subject::find($course->subject_id))->name,
+        ]);
+    }
+
+    public function courseAttendanceSave(Request $request)
+    {
+        $course  = $this->ownedCourse($request->course_id);
+        $ts      = strtotime(date('Y-m-d', strtotime($request->date ?: date('Y-m-d'))));
+        $session = $this->activeSession();
+        $saved   = 0;
+
+        foreach (($request->student_id ?? []) as $sid) {
+            $enroll = Enrollment::where('user_id', $sid)->where('class_id', $course->class_id)
+                ->where('school_id', $course->school_id)->first();
+            if (!$enroll) continue;
+            DailyAttendances::updateOrCreate(
+                ['timestamp' => $ts, 'class_id' => $course->class_id, 'section_id' => $enroll->section_id,
+                 'session_id' => $session, 'school_id' => $course->school_id, 'student_id' => $sid],
+                ['status' => (int) $request->input('status-' . $sid, 0)]
+            );
+            $saved++;
+        }
+
+        return redirect()->route('teacher.addons.course.attendance', ['id' => $course->id, 'date' => date('Y-m-d', $ts)])
+            ->with('message', $saved . ' ' . get_phrase('attendance record(s) saved for') . ' ' . date('d M Y', $ts) . '.');
+    }
+
+    /* ---- teacher preview: see the course exactly as a student does ---- */
+    public function teacherPreview($id)
+    {
+        $course = $this->ownedCourse($id);
+        $course->load('topics.lessons.materials', 'sessions');
+
+        $syllabus = Syllabus::where('class_id', $course->class_id)
+            ->where('subject_id', $course->subject_id)
+            ->where('school_id', $this->schoolId())->get();
+        // preview shows published work across ALL sections of the class
+        $assignments = Assignment::where('class_id', $course->class_id)
+            ->where('subject_id', $course->subject_id)
+            ->where('school_id', $this->schoolId())
+            ->where('status', 'published')->get();
+
+        $sittingExams = Exam::where('exam_type', 'offline')
+            ->where('class_id', $course->class_id)
+            ->where('subject_id', $course->subject_id)
+            ->where('school_id', $this->schoolId())
+            ->where('ending_time', '>=', time())
+            ->orderBy('starting_time')->get();
+
+        $now      = now();
+        $upcoming = $course->sessions->filter(fn ($x) => $x->status === 'scheduled'
+            && $x->session_date && $x->session_date->copy()->addMinutes((int) $x->duration_minutes)->gte($now))->values();
+        $past = $course->sessions->filter(fn ($x) => !($x->status === 'scheduled'
+            && $x->session_date && $x->session_date->copy()->addMinutes((int) $x->duration_minutes)->gte($now)))
+            ->sortByDesc('session_date')->values();
+
+        $results = collect();
+        return view('student.courses.view', compact('course', 'syllabus', 'assignments', 'sittingExams', 'upcoming', 'past', 'results'))
+            ->with('preview', true);
     }
 
     /* ---- remove / re-admit a student from this course (with a reason) ---- */
@@ -492,6 +958,14 @@ class OnlineCourseController extends Controller
             ->where('school_id', $this->schoolId())
             ->where('status', 'published')->get();
 
+        // upcoming sitting CATs / physical exams for this class+subject
+        $sittingExams = Exam::where('exam_type', 'offline')
+            ->where('class_id', $course->class_id)
+            ->where('subject_id', $course->subject_id)
+            ->where('school_id', $this->schoolId())
+            ->where('ending_time', '>=', time())
+            ->orderBy('starting_time')->get();
+
         // Live sessions: upcoming (still joinable) vs past.
         $now      = now();
         $upcoming = $course->sessions->filter(fn ($x) => $x->status === 'scheduled'
@@ -500,7 +974,61 @@ class OnlineCourseController extends Controller
             && $x->session_date && $x->session_date->copy()->addMinutes((int) $x->duration_minutes)->gte($now)))
             ->sortByDesc('session_date')->values();
 
-        return view('student.courses.view', compact('course', 'syllabus', 'assignments', 'upcoming', 'past'));
+        $results = $this->studentCourseResults($course, $enroll, auth()->user()->id);
+
+        return view('student.courses.view', compact('course', 'syllabus', 'assignments', 'sittingExams', 'upcoming', 'past', 'results'));
+    }
+
+    /** A student's own results for a course: online CAT scores + sitting exam gradebook marks. */
+    private function studentCourseResults($course, $enroll, $student_id)
+    {
+        $results = collect();
+
+        // online CATs (auto-graded quizzes) the student has sat
+        $quizzes = Assignment::where('class_id', $course->class_id)
+            ->where('section_id', $enroll->section_id)->where('subject_id', $course->subject_id)
+            ->where('school_id', $this->schoolId())->where('is_quiz', 1)->get()->keyBy('id');
+        if ($quizzes->isNotEmpty()) {
+            $subs = AssignmentSubmission::where('student_id', $student_id)
+                ->whereIn('assignment_id', $quizzes->keys())->get();
+            foreach ($subs as $sub) {
+                $a = $quizzes[$sub->assignment_id] ?? null;
+                $results->push([
+                    'title'  => $a ? $a->title : 'CAT',
+                    'type'   => 'Online CAT',
+                    'score'  => $sub->obtained_marks,
+                    'total'  => $a ? (int) $a->total_marks : null,
+                    'status' => $sub->status === 'returned' ? 'graded' : 'pending',
+                    'date'   => $sub->graded_at ? date('d M Y', (int) $sub->graded_at) : null,
+                ]);
+            }
+        }
+
+        // sitting exams — marks live in the gradebook keyed by exam_category + subject
+        $exams = Exam::where('exam_type', 'offline')->where('class_id', $course->class_id)
+            ->where('subject_id', $course->subject_id)->where('school_id', $this->schoolId())
+            ->where('session_id', $this->activeSession())->orderByDesc('starting_time')->get();
+        if ($exams->isNotEmpty()) {
+            $gradebooks = Gradebook::where('student_id', $student_id)->where('class_id', $course->class_id)
+                ->where('section_id', $enroll->section_id)->where('school_id', $this->schoolId())
+                ->where('session_id', $this->activeSession())->get()->keyBy('exam_category_id');
+            foreach ($exams as $ex) {
+                $g = $gradebooks[$ex->exam_category_id] ?? null;
+                if (!$g) continue;
+                $marks = json_decode($g->marks, true) ?: [];
+                if (!isset($marks[$course->subject_id])) continue;
+                $results->push([
+                    'title'  => $ex->name,
+                    'type'   => 'Sitting exam',
+                    'score'  => $marks[$course->subject_id],
+                    'total'  => (int) $ex->total_marks,
+                    'status' => 'graded',
+                    'date'   => $ex->starting_time ? date('d M Y', (int) $ex->starting_time) : null,
+                ]);
+            }
+        }
+
+        return $results;
     }
 
     /* ===================================================================== ADMIN */

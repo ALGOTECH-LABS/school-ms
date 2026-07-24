@@ -48,10 +48,8 @@
 			<label for="payment_method" class="eForm-label">{{ get_phrase('Payment method') }}</label>
 			<select name="payment_method" id="payment_method" class="form-select eForm-select eChoice-multiple-with-remove">
 				<option value="">{{ get_phrase('Select a payment method') }}</option>
-				<option value="cash">{{ get_phrase('Cash') }}</option>
-				<option value="paypal">{{ get_phrase('Paypal') }}</option>
-				<option value="paytm">{{ get_phrase('Paytm') }}</option>
-				<option value="razorpay">{{ get_phrase('Razorpay') }}</option>
+				<option value="mpesa">{{ get_phrase('M-Pesa') }}</option>
+				<option value="bank">{{ get_phrase('Bank transfer') }}</option>
 			</select>
 		</div>
 

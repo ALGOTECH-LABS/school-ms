@@ -822,3 +822,79 @@ a.list-group-item.list-group-item-action:last-child {
 }
 
 
+
+/* ==========================================================================
+   GLOBAL PRINT STYLESHEET (2026-07-23)
+   Printing anywhere was dumping the whole app chrome (sidebar + topbar +
+   footer) instead of just the page data. Hide the layout shell on print and
+   let the content area fill the page. Loads last (custom.css) so it wins.
+   ========================================================================== */
+@media print {
+  /* hide the app shell */
+  .sidebar,
+  .home-header,
+  .home-section .home-content .sidebar_menu_icon,
+  .copyright-text,
+  .no-print,
+  .print-hidden,
+  .print-hide,
+  #printPageButton,
+  .att-filter,
+  .eTab-nav,
+  .kh-tabs,
+  .mainSection-title .eBreadcrumb-2,
+  .export-btn-area,
+  .admitCardPrintBtn_f {
+    display: none !important;
+  }
+
+  /* content fills the page (sidebar offset removed) */
+  .home-section {
+    position: static !important;
+    left: 0 !important;
+    width: 100% !important;
+    background: #fff !important;
+    margin: 0 !important;
+  }
+  .home-content,
+  .main_content {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* clean paper: white background, no shadows/rounded cards fighting the page */
+  html, body {
+    background: #fff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .eSection-wrap,
+  .card,
+  .eCard,
+  .kh-card {
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  /* never clip printed tables/content inside scroll boxes */
+  .table-responsive { overflow: visible !important; }
+
+  a[href]:after { content: none !important; }  /* don't append URLs after links */
+
+  @page { margin: 12mm; }
+}
+
+/* Compact right-aligned action button group for table rows (CATs, etc.)
+   Stops .eBtn (display:flex) links from stacking into a staircase. */
+.kh-actions{
+  display:inline-flex; justify-content:flex-end; align-items:center;
+  gap:6px; flex-wrap:nowrap; white-space:nowrap;
+}
+.kh-actions .eBtn{
+  display:inline-flex; align-items:center; justify-content:center; gap:5px;
+  width:auto !important; min-width:0 !important; height:34px; min-height:34px;
+  padding:0 12px !important; white-space:nowrap; font-size:12.5px; margin:0 !important; flex:0 0 auto;
+}
+.kh-actions .eBtn.kh-icon{ width:34px !important; padding:0 !important; }  /* square icon-only */
+.kh-actions .eBtn i{ font-size:14px; }
+@media (max-width: 991px){ .kh-actions{ justify-content:flex-start; } }

@@ -56,10 +56,15 @@ class QuestionBankController extends Controller
         return view('teacher.question_bank.index', compact('questions', 'subjects', 'subject_id', 'type', 'difficulty', 'search'));
     }
 
-    public function createModal()
+    public function createModal(Request $request)
     {
         $classes = $this->permittedClasses();
-        return view('teacher.question_bank.form', ['classes' => $classes, 'question' => null]);
+        // optional: create a question directly INTO an online CAT (attach after saving)
+        $attachQuiz = null;
+        if ($request->attach_quiz_id) {
+            $attachQuiz = $this->ownedQuiz($request->attach_quiz_id);
+        }
+        return view('teacher.question_bank.form', ['classes' => $classes, 'question' => null, 'attachQuiz' => $attachQuiz]);
     }
 
     public function classSubjects(Request $request)
@@ -107,12 +112,27 @@ class QuestionBankController extends Controller
             'subject_id' => 'required',
         ]);
 
-        Question::create(array_merge($this->buildQuestionData($request), [
+        $question = Question::create(array_merge($this->buildQuestionData($request), [
             'school_id'  => $this->schoolId(),
             'teacher_id' => auth()->user()->id,
             'class_id'   => $request->class_id,
             'subject_id' => $request->subject_id,
         ]));
+
+        // created from inside an online CAT → attach it there too
+        if ($request->attach_quiz_id) {
+            $quiz = $this->ownedQuiz($request->attach_quiz_id);
+            abort_if($this->quizLocked($quiz), 403, get_phrase('Students have already submitted — the paper is locked.'));
+            AssignmentQuestion::create([
+                'assignment_id' => $quiz->id,
+                'question_id'   => $question->id,
+                'marks'         => $question->marks,
+                'sort_order'    => (int) AssignmentQuestion::where('assignment_id', $quiz->id)->max('sort_order') + 1,
+            ]);
+            $this->recomputeQuizMarks($quiz);
+            return redirect()->route('teacher.quiz.questions', $quiz->id)
+                ->with('message', get_phrase('Question created and added to the CAT.'));
+        }
 
         return redirect()->back()->with('message', get_phrase('Question added to the bank.'));
     }
@@ -172,7 +192,7 @@ class QuestionBankController extends Controller
         ]);
 
         $pool = Question::where('school_id', $this->schoolId())
-            ->where('subject_id', $request->subject_id)
+            ->whereIn('subject_id', $this->sameNameSubjectIds($request->subject_id))
             ->when($request->difficulty, fn($q) => $q->where('difficulty', $request->difficulty))
             ->when($request->topic, fn($q) => $q->where('topic', 'LIKE', "%{$request->topic}%"))
             ->when($request->qtype, fn($q) => $q->where('type', $request->qtype))
@@ -212,6 +232,180 @@ class QuestionBankController extends Controller
 
         return redirect()->route('teacher.quiz.review', $assignment->id)
             ->with('message', get_phrase('Quiz generated with ') . $pool->count() . get_phrase(' questions.'));
+    }
+
+    /* ===================================================================== ONLINE CATS (quiz list) */
+
+    public function quizzes()
+    {
+        $sid = $this->schoolId();
+
+        $quizzes = Assignment::where('school_id', $sid)
+            ->where('teacher_id', auth()->user()->id)
+            ->where('is_quiz', 1)
+            ->orderByDesc('id')->get();
+
+        $ids = $quizzes->pluck('id');
+        $subCounts = AssignmentSubmission::whereIn('assignment_id', $ids)
+            ->selectRaw('assignment_id, COUNT(*) c')->groupBy('assignment_id')->pluck('c', 'assignment_id');
+        $qCounts = AssignmentQuestion::whereIn('assignment_id', $ids)
+            ->selectRaw('assignment_id, COUNT(*) c')->groupBy('assignment_id')->pluck('c', 'assignment_id');
+
+        $classNames   = Classes::whereIn('id', $quizzes->pluck('class_id')->unique())->pluck('name', 'id');
+        $sectionNames = Section::whereIn('id', $quizzes->pluck('section_id')->unique())->pluck('name', 'id');
+        $subjectNames = Subject::whereIn('id', $quizzes->pluck('subject_id')->unique())->pluck('name', 'id');
+
+        return view('teacher.question_bank.quizzes', compact(
+            'quizzes', 'subCounts', 'qCounts', 'classNames', 'sectionNames', 'subjectNames'
+        ));
+    }
+
+    /* ===================================================================== CAT QUESTION MANAGEMENT */
+
+    private function ownedQuiz($id)
+    {
+        return Assignment::where('id', $id)->where('is_quiz', 1)
+            ->where('teacher_id', auth()->user()->id)
+            ->where('school_id', $this->schoolId())->firstOrFail();
+    }
+
+    /**
+     * All subject ids in this school that share the given subject's name.
+     * A subject like "Anatomy" exists once per class (distinct ids) — the
+     * question bank is treated as shared across them so questions are reusable.
+     */
+    private function sameNameSubjectIds($subject_id)
+    {
+        $name = Subject::where('id', $subject_id)->value('name');
+        if (!$name) return [$subject_id];
+        return Subject::where('school_id', $this->schoolId())
+            ->where('name', $name)->pluck('id')->all();
+    }
+
+    // Once anyone has submitted, the paper must not change (grading would corrupt).
+    private function quizLocked($quiz)
+    {
+        return AssignmentSubmission::where('assignment_id', $quiz->id)->exists();
+    }
+
+    private function recomputeQuizMarks($quiz)
+    {
+        $quiz->update(['total_marks' => (int) AssignmentQuestion::where('assignment_id', $quiz->id)->sum('marks')]);
+    }
+
+    /** Manage the questions inside one online CAT: list, add from bank, remove, create new. */
+    public function quizQuestions(Request $request, $id)
+    {
+        $quiz = $this->ownedQuiz($id);
+        $locked = $this->quizLocked($quiz);
+
+        $attached = AssignmentQuestion::where('assignment_id', $quiz->id)
+            ->orderBy('sort_order')->get()
+            ->map(function ($aq) {
+                $aq->q = Question::find($aq->question_id);
+                return $aq;
+            })->filter(fn ($aq) => $aq->q)->values();
+
+        // The bank is reusable across classes: pull from EVERY subject that shares
+        // this subject's name (e.g. "Anatomy" exists once per class), not just the
+        // exact subject_id — otherwise a CAT for one class can't see questions
+        // written under the same subject in another class.
+        $subjectName = optional(Subject::find($quiz->subject_id))->name;
+        $subjectIds  = $this->sameNameSubjectIds($quiz->subject_id);
+
+        // bank questions not already on the paper (paginated)
+        $search = trim((string) $request->get('q', ''));
+        $bankTotal = Question::where('school_id', $this->schoolId())
+            ->whereIn('subject_id', $subjectIds)
+            ->whereNotIn('id', $attached->pluck('question_id'))->count();
+        $bank = Question::where('school_id', $this->schoolId())
+            ->whereIn('subject_id', $subjectIds)
+            ->whereNotIn('id', $attached->pluck('question_id'))
+            ->when($search !== '', fn ($qq) => $qq->where(function ($w) use ($search) {
+                $w->where('question', 'LIKE', "%{$search}%")->orWhere('topic', 'LIKE', "%{$search}%");
+            }))
+            ->orderByDesc('id')->paginate(8)->appends(['q' => $search]);
+
+        $className   = optional(Classes::find($quiz->class_id))->name;
+        $sectionName = optional(Section::find($quiz->section_id))->name;
+        $submissionCount = AssignmentSubmission::where('assignment_id', $quiz->id)->count();
+
+        // the course this CAT belongs to (class+subject+teacher), for the Back button
+        $course = \App\Models\Course::where('class_id', $quiz->class_id)
+            ->where('subject_id', $quiz->subject_id)
+            ->where('teacher_id', auth()->user()->id)
+            ->where('school_id', $this->schoolId())->first();
+
+        return view('teacher.question_bank.quiz_questions', compact(
+            'quiz', 'attached', 'bank', 'bankTotal', 'locked', 'search', 'course',
+            'className', 'sectionName', 'subjectName', 'submissionCount'
+        ));
+    }
+
+    public function quizQuestionAdd(Request $request)
+    {
+        $quiz = $this->ownedQuiz($request->assignment_id);
+        abort_if($this->quizLocked($quiz), 403, get_phrase('Students have already submitted — the paper is locked.'));
+
+        $question = Question::where('id', $request->question_id)
+            ->where('school_id', $this->schoolId())->firstOrFail();
+
+        $exists = AssignmentQuestion::where('assignment_id', $quiz->id)
+            ->where('question_id', $question->id)->exists();
+        if (!$exists) {
+            AssignmentQuestion::create([
+                'assignment_id' => $quiz->id,
+                'question_id'   => $question->id,
+                'marks'         => $question->marks,
+                'sort_order'    => (int) AssignmentQuestion::where('assignment_id', $quiz->id)->max('sort_order') + 1,
+            ]);
+            $this->recomputeQuizMarks($quiz);
+        }
+
+        return redirect()->route('teacher.quiz.questions', $quiz->id)
+            ->with('message', get_phrase('Question added to the CAT.'));
+    }
+
+    /** Printable exam paper: the CAT as students sit it (?answers=1 adds the marking key). */
+    public function quizPaper(Request $request, $id)
+    {
+        $quiz = $this->ownedQuiz($id);
+
+        $attached = AssignmentQuestion::where('assignment_id', $quiz->id)
+            ->orderBy('sort_order')->get()
+            ->map(function ($aq) {
+                $aq->q = Question::find($aq->question_id);
+                return $aq;
+            })->filter(fn ($aq) => $aq->q)->values();
+
+        $school   = \DB::table('schools')->where('id', $this->schoolId())->first();
+        $logoFile = get_settings('dark_logo');
+        $logoUrl  = ($logoFile && file_exists(public_path('assets/uploads/logo/' . $logoFile)))
+            ? asset('assets/uploads/logo/' . $logoFile) : null;
+
+        return view('teacher.question_bank.quiz_paper', [
+            'quiz'        => $quiz,
+            'attached'    => $attached,
+            'school'      => $school,
+            'logoUrl'     => $logoUrl,
+            'answers'     => (bool) $request->get('answers'),
+            'className'   => optional(Classes::find($quiz->class_id))->name,
+            'sectionName' => optional(Section::find($quiz->section_id))->name,
+            'subjectName' => optional(Subject::find($quiz->subject_id))->name,
+        ]);
+    }
+
+    public function quizQuestionRemove(Request $request)
+    {
+        $quiz = $this->ownedQuiz($request->assignment_id);
+        abort_if($this->quizLocked($quiz), 403, get_phrase('Students have already submitted — the paper is locked.'));
+
+        AssignmentQuestion::where('assignment_id', $quiz->id)
+            ->where('question_id', $request->question_id)->delete();
+        $this->recomputeQuizMarks($quiz);
+
+        return redirect()->route('teacher.quiz.questions', $quiz->id)
+            ->with('message', get_phrase('Question removed from the CAT.'));
     }
 
     /* ===================================================================== STUDENT: TAKE */
@@ -371,12 +565,6 @@ class QuestionBankController extends Controller
     }
 
     /* ===================================================================== TEACHER: REVIEW / GRADE */
-
-    private function ownedQuiz($id)
-    {
-        return Assignment::where('id', $id)->where('is_quiz', 1)
-            ->where('teacher_id', auth()->user()->id)->firstOrFail();
-    }
 
     public function teacherReview($id)
     {

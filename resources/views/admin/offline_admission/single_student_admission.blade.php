@@ -161,6 +161,8 @@
         </div>
         <hr style="background-color:#6B708A;">
 
+        @include('admin.partials.parent_picker', ['parents' => $data['parents']])
+
         <div class="row p-3">
             <div class="col-sm-10 offset-sm-2">
                 <button type="submit" class="btn-form">{{ get_phrase('Add Student') }}</button>

@@ -53,7 +53,12 @@ Route::controller(QuestionBankController::class)->group(function () {
         Route::post('teacher/question-bank/delete/{id}', 'delete')->name('teacher.qbank.delete');
         Route::get('teacher/question-bank/generate-modal', 'generateModal')->name('teacher.qbank.generate_modal');
         Route::post('teacher/question-bank/generate', 'generateQuiz')->name('teacher.qbank.generate');
+        Route::get('teacher/online-cats', 'quizzes')->name('teacher.qbank.quizzes');
 
+        Route::get('teacher/quiz/questions/{id}', 'quizQuestions')->name('teacher.quiz.questions');
+        Route::get('teacher/quiz/paper/{id}', 'quizPaper')->name('teacher.quiz.paper');
+        Route::post('teacher/quiz/question/add', 'quizQuestionAdd')->name('teacher.quiz.question.add');
+        Route::post('teacher/quiz/question/remove', 'quizQuestionRemove')->name('teacher.quiz.question.remove');
         Route::get('teacher/quiz/review/{id}', 'teacherReview')->name('teacher.quiz.review');
         Route::get('teacher/quiz/grade-view/{submission_id}', 'teacherGradeView')->name('teacher.quiz.grade_view');
         Route::post('teacher/quiz/grade/{submission_id}', 'teacherGrade')->name('teacher.quiz.grade');

@@ -272,7 +272,7 @@
         </ul>
       </li>
 
-      <li class="nav-links-li {{ request()->is('parent/noticeboard*') || request()->is('parent/events/list*') || request()->is('parent/feedback/filter*') ? 'showMenu':'' }}">
+      <li class="nav-links-li {{ request()->is('parent/noticeboard*') || request()->is('parent/events/list*') ? 'showMenu':'' }}">
         <div class="iocn-link">
           <a href="#">
             <div class="sidebar_icon">
@@ -309,10 +309,6 @@
                 <span>{{ get_phrase('Events') }}</span>
               </a>
           </li>
-          <li>
-            <a class="{{ (request()->is('parent/feedback/filter*')) ? 'active' : '' }}" href="{{ route('parent.feedback.filter') }}"><span>{{ get_phrase('Feedback') }}
-            </span></a>
-        </li>
         </ul>
       </li>
 

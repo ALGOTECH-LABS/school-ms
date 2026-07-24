@@ -588,36 +588,30 @@ class StudentController extends Controller
 
     public function FeeManagerList(Request $request)
     {
-        $active_session = get_school_settings(auth()->user()->school_id)->value('running_session');
-        $student_class_information = Enrollment::where('user_id', auth()->user()->id)->first()->toArray();
+        $sid = auth()->user()->school_id;
+        $active_session = get_school_settings($sid)->value('running_session');
 
-        if (count($request->all()) > 0) {
+        // A student sees ALL of their own fees for the session by default — no filtering needed.
+        $query = StudentFeeManager::where('student_id', auth()->user()->id)
+            ->where('school_id', $sid)->where('session_id', $active_session);
 
-
-            $data = $request->all();
-            $date = explode('-', $data['eDateRange']);
-            $date_from = strtotime($date[0] . ' 00:00:00');
-            $date_to  = strtotime($date[1] . ' 23:59:59');
-            $selected_status = $data['status'];
-
-            if ($selected_status != "all") {
-                $invoices = StudentFeeManager::where('timestamp', '>=', $date_from)->where('timestamp', '<=', $date_to)->where('status', $selected_status)->where('student_id', auth()->user()->id)->where('session_id', $active_session)->get();
-            } else if ($selected_status == "all") {
-                $invoices = StudentFeeManager::where('timestamp', '>=', $date_from)->where('timestamp', '<=', $date_to)->where('school_id', auth()->user()->school_id)->where('student_id', auth()->user()->id)->where('session_id', $active_session)->get();
-            }
-
-
-            return view('student.fee_manager.student_fee_manager', ['invoices' => $invoices, 'date_from' => $date_from, 'date_to' => $date_to,  'selected_status' => $selected_status]);
-        } else {
-
-            $date_from = strtotime(date('d-M-Y', strtotime(' -30 day')) . ' 00:00:00');
-            $date_to = strtotime(date('d-M-Y') . ' 23:59:59');
-            $selected_status = "";
-
-            $invoices = StudentFeeManager::where('timestamp', '>=', $date_from)->where('timestamp', '<=', $date_to)->where('student_id', auth()->user()->id)->where('school_id', auth()->user()->school_id)->where('session_id', $active_session)->get();
-
-            return view('student.fee_manager.student_fee_manager', ['invoices' => $invoices, 'date_from' => $date_from, 'date_to' => $date_to,  'selected_status' => $selected_status]);
+        $selected_status = $request->status ?? '';
+        if ($selected_status !== '' && $selected_status !== 'all') {
+            $query->where('status', $selected_status);
         }
+
+        // date range only applied if the student actually picks one
+        $date_from = ""; $date_to = "";
+        if ($request->filled('eDateRange') && strpos($request->eDateRange, '-') !== false) {
+            $parts     = explode('-', $request->eDateRange);
+            $date_from = strtotime(trim($parts[0]) . ' 00:00:00');
+            $date_to   = strtotime(trim($parts[1]) . ' 23:59:59');
+            if ($date_from && $date_to) $query->whereBetween('timestamp', [$date_from, $date_to]);
+        }
+
+        $invoices = $query->orderByDesc('id')->get();
+
+        return view('student.fee_manager.student_fee_manager', ['invoices' => $invoices, 'date_from' => $date_from, 'date_to' => $date_to, 'selected_status' => $selected_status]);
     }
 
     public function feeManagerExport($date_from = "", $date_to = "", $selected_status = "")

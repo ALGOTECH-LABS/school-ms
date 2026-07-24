@@ -119,6 +119,27 @@
         }
     }
 
+    // Deep-link support: /teacher/marks?exam_category_id=&class_id=&section_id=&subject_id=&session_id=
+    // pre-selects every filter and auto-loads the marks sheet (used by the course "Enter marks" buttons).
+    $(document).ready(function(){
+        var p = new URLSearchParams(window.location.search);
+        if(!p.get('class_id')) return;
+        $('#exam_category_id').val(p.get('exam_category_id') || '');
+        $('#session_id').val(p.get('session_id') || '');
+        $('#class_id').val(p.get('class_id'));
+        var secUrl = "{{ route('class_wise_sections', ['id' => ':c']) }}".replace(':c', p.get('class_id'));
+        var subUrl = "{{ route('class_wise_subject', ['id' => ':c']) }}".replace(':c', p.get('class_id'));
+        $.when($.get(secUrl), $.get(subUrl)).done(function(secR, subR){
+            $('#section_id').html(secR[0]);
+            $('#subject_id').html(subR[0]);
+            if(p.get('section_id')) $('#section_id').val(p.get('section_id'));
+            if(p.get('subject_id')) $('#subject_id').val(p.get('subject_id'));
+            if(p.get('exam_category_id') && p.get('section_id') && p.get('subject_id') && p.get('session_id')){
+                getFilteredMarks();
+            }
+        });
+    });
+
     var getFilteredMarks = function() {
         var exam_category_id = $('#exam_category_id').val();
         var class_id = $('#class_id').val();

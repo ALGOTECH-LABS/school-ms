@@ -176,11 +176,6 @@ use App\Models\User;
                       {{ get_phrase('Student') }}
                   </span></a></li>
                   @endif
-                  @if(empty($user->menu_permission) || in_array('admin.permission', $menu_permission))
-                    <li><a class="{{ (request()->is('admin/permission*')) ? 'active' : '' }}" href="{{ route('admin.teacher.permission') }}"><span>
-                      {{ get_phrase('Teacher Permission') }}
-                  </span></a></li>
-                  @endif
               </ul>
           </li>
           @endif
@@ -793,7 +788,7 @@ use App\Models\User;
         </li>
 
         @if(empty($user->menu_permission) || in_array('admin.book.book_list', $menu_permission) || in_array('admin.book_issue.list', $menu_permission) || in_array('admin.noticeboard.list', $menu_permission) || in_array('admin.subscription', $menu_permission) || in_array('admin.events.list', $menu_permission) || in_array('admin.feedback.feedback_list', $menu_permission))
-        <li class="nav-links-li {{ request()->is('admin/noticeboard*') || request()->is('admin/subscription') || request()->is('admin/events/list*') || request()->is('admin/feedback-list*') ? 'showMenu':'' }}">
+        <li class="nav-links-li {{ request()->is('admin/noticeboard*') || request()->is('admin/subscription') || request()->is('admin/events/list*') ? 'showMenu':'' }}">
             <div class="iocn-link">
                 <a href="#">
                     <div class="sidebar_icon">
@@ -833,12 +828,6 @@ use App\Models\User;
               @if(empty($user->menu_permission) || in_array('admin.events.list', $menu_permission))
               <li>
                 <a class="{{ (request()->is('admin/events/list*')) ? 'active' : '' }}" href="{{ route('admin.events.list') }}"><span>{{ get_phrase('Events') }}
-                </span></a>
-              </li>
-              @endif
-              @if(empty($user->menu_permission) || in_array('admin.feedback.feedback_list', $menu_permission))
-              <li>
-                <a class="{{ (request()->is('admin/feedback-list*')) ? 'active' : '' }}" href="{{ route('admin.feedback.feedback_list') }}"><span>{{ get_phrase('Feedback') }}
                 </span></a>
               </li>
               @endif

@@ -1,6 +1,17 @@
-@extends('student.navigation')
+@extends(($preview ?? false) ? 'teacher.navigation' : 'student.navigation')
 
 @section('content')
+@if($preview ?? false)
+  <div class="d-flex justify-content-between align-items-center flex-wrap mb-3"
+       style="gap:10px;background:#fff8e6;border:1px solid #f2e2b3;border-radius:12px;padding:12px 18px;">
+    <div style="font-size:13.5px;color:#8a6d1a;font-weight:600;">
+      <i class="bi bi-eye"></i> {{ get_phrase('Student preview — this is exactly what your class sees.') }}
+    </div>
+    <a class="eBtn btn-secondary" href="{{ route('teacher.addons.course.manage', $course->id) }}">
+      <i class="bi bi-arrow-left"></i> {{ get_phrase('Back to manage course') }}
+    </a>
+  </div>
+@endif
 @php
   use Illuminate\Support\Str;
   $sub = \App\Models\Subject::find($course->subject_id);
@@ -96,7 +107,7 @@
         <span><i class="bi bi-paperclip"></i> {{ $materialCount }} {{ get_phrase('materials') }}</span>
       </div>
     </div>
-    <a class="eBtn hero-back" href="{{ route('student.addons.courses') }}"><i class="bi bi-arrow-left"></i> {{ get_phrase('Back') }}</a>
+    <a class="eBtn hero-back" href="{{ ($preview ?? false) ? route('teacher.addons.course.manage', $course->id) : route('student.addons.courses') }}"><i class="bi bi-arrow-left"></i> {{ get_phrase('Back') }}</a>
   </div>
 </div>
 
@@ -204,14 +215,50 @@
     </div>
 
     <div class="side-card">
+      <h6><i class="bi bi-award" style="color:#00955f;"></i> {{ get_phrase('My results') }}</h6>
+      @forelse(($results ?? collect()) as $r)
+        @php $pct = ($r['total'] && $r['score'] !== null) ? round($r['score'] / $r['total'] * 100) : null; @endphp
+        <div class="side-link" style="cursor:default;">
+          <span class="t">{{ $r['title'] }} <span class="badge-type" style="background:{{ $r['type']==='Online CAT' ? '#e8f5ef' : '#fdf6e6' }};color:{{ $r['type']==='Online CAT' ? '#00794c' : '#a37b1d' }};">{{ $r['type'] }}</span></span>
+          <span class="d">
+            @if($r['status']==='graded' && $r['score'] !== null)
+              <b style="color:{{ $pct !== null && $pct>=50 ? '#00955f' : '#c0392b' }};">{{ rtrim(rtrim(number_format((float)$r['score'],2),'0'),'.') }}{{ $r['total'] ? '/'.$r['total'] : '' }}</b>@if($pct !== null) · {{ $pct }}%@endif
+            @else
+              <span style="color:#a37b1d;">{{ get_phrase('Awaiting result') }}</span>
+            @endif
+          </span>
+        </div>
+      @empty
+        <span class="side-empty">{{ get_phrase('No results yet — they appear here after each CAT or exam is marked.') }}</span>
+      @endforelse
+    </div>
+
+    <div class="side-card">
       <h6><i class="bi bi-journal-check" style="color:#00955f;"></i> {{ get_phrase('Assignments') }}</h6>
       @forelse($assignments as $a)
-        <a class="side-link" href="{{ $a->is_quiz ? route('student.quiz.take',$a->id) : route('student.assignment.show',$a->id) }}">
+        @php
+          $aHref = ($preview ?? false)
+              ? ($a->is_quiz ? route('teacher.quiz.review',$a->id) : route('teacher.assignment.show',$a->id))
+              : ($a->is_quiz ? route('student.quiz.take',$a->id) : route('student.assignment.show',$a->id));
+        @endphp
+        <a class="side-link" href="{{ $aHref }}">
           <span class="t">{{ $a->title }} @if($a->is_quiz)<span class="badge-type">{{ get_phrase('Quiz') }}</span>@endif</span>
           <span class="d">{{ $a->deadline ? date('d M', $a->deadline) : '' }}</span>
         </a>
       @empty
         <span class="side-empty">{{ get_phrase('No assignments for this subject.') }}</span>
+      @endforelse
+    </div>
+
+    <div class="side-card">
+      <h6><i class="bi bi-building" style="color:#a37b1d;"></i> {{ get_phrase('Sitting CATs & exams') }}</h6>
+      @forelse(($sittingExams ?? collect()) as $ex)
+        <div class="side-link" style="cursor:default;">
+          <span class="t">{{ $ex->name }}</span>
+          <span class="d">{{ date('d M, H:i', (int) $ex->starting_time) }}{{ $ex->room_number ? ' · '.$ex->room_number : '' }}</span>
+        </div>
+      @empty
+        <span class="side-empty">{{ get_phrase('No upcoming sitting exams.') }}</span>
       @endforelse
     </div>
   </div>

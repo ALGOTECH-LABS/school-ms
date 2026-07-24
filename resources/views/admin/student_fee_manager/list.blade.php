@@ -53,7 +53,7 @@ if($selected_status == ""){
                     <td>
                         <strong>{{ $student_details['name'] }}</strong> <br>
                         <small> <strong>{{ get_phrase('Class') }} :</strong> {{ $student_details['class_name'] }}</small> <br>
-                        <small><strong>{{ get_phrase('Section') }} :</strong> {{ 
+                        <small><strong>{{ get_phrase('Section') }} :</strong> {{
                         $student_details->section_name }}</small>
                     </td>
                     <td>

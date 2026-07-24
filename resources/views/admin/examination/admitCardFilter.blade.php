@@ -12,18 +12,35 @@ use App\Http\Controllers\CommonController;
 
 ?>
 
+@php
+    // Resolve a reliable school logo: brand dark_logo first, then legacy schools.school_logo, then a bundled fallback.
+    $__darkLogo   = get_settings('dark_logo');
+    $__schoolLogo = DB::table('schools')->where('id', auth()->user()->school_id)->value('school_logo');
+    if ($__darkLogo && file_exists(public_path('assets/uploads/logo/'.$__darkLogo))) {
+        $brandLogo = asset('assets/uploads/logo/'.$__darkLogo);
+    } elseif ($__schoolLogo && file_exists(public_path('assets/uploads/school_logo/'.$__schoolLogo))) {
+        $brandLogo = asset('assets/uploads/school_logo/'.$__schoolLogo);
+    } else {
+        $brandLogo = asset('assets/images/id_logo.png');
+    }
+    $schoolTitle = DB::table('schools')->where('id', auth()->user()->school_id)->value('title');
+@endphp
+
 <style>
     .admit-card::before {
         content: "";
-        background: url('{{  asset('assets/uploads/school_logo/'.DB::table('schools')->where('id', auth()->user()->school_id)->value('school_logo') ) }}') no-repeat center;
+        background: url('{{ $brandLogo }}') no-repeat center;
         background-size: 60%;
-        opacity: 0.1;
+        opacity: 0.08;
         position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
+        top: 0; left: 0; right: 0; bottom: 0;
         z-index: 0;
+    }
+    .admit-card-print-btn {
+        position: absolute; top: 12px; right: 12px; z-index: 5;
+    }
+    @media print {
+        .no-print { display: none !important; }
     }
 </style>
 
@@ -126,10 +143,10 @@ use App\Http\Controllers\CommonController;
                             class="dropdown-menu dropdown-menu-end eDropdown-menu-2"
                         >
                             <li>
-                                <a class="dropdown-item" id="pdf" href="javascript:;" onclick="Export()">{{ get_phrase('PDF') }}</a>
+                                <a class="dropdown-item" id="pdf" href="javascript:;" onclick="Export()">{{ get_phrase('Export all (PDF)') }}</a>
                             </li>
                             <li>
-                                <a class="dropdown-item" id="print" href="javascript:;" onclick="printableDiv('admit_card_body')">{{ get_phrase('Print') }}</a>
+                                <a class="dropdown-item" id="print" href="javascript:;" onclick="printableDiv('admit_card_body')">{{ get_phrase('Print all') }}</a>
                             </li>
                         </ul>
                     </div>
@@ -144,20 +161,14 @@ use App\Http\Controllers\CommonController;
                             $student_details = (new CommonController)->get_student_details_by_id($id);
 
                     ?>
-                        <div class="admit-card">
+                        <div class="admit-card" id="admit_card_{{ $id }}">
+                            <button type="button" class="eBtn btn-secondary no-print admit-card-print-btn" onclick="printSingle('admit_card_{{ $id }}')">
+                                <i class="bi bi-printer"></i> {{ get_phrase('Print') }}
+                            </button>
                             <div class="d-flex justify-content-between align-items-center">
-                            @if(empty($school_data->school_logo))
-                                <img class="header-logo" src="{{ asset('assets/uploads/school_logo/'.DB::table('schools')->where('id', auth()->user()->school_id)->value('school_logo') ) }}">
-                            @else
-                                <img class="header-logo" src="{{ asset('assets') }}/images/id_logo.png">
-                            @endif
-                                
-                                <h3>{{ DB::table('schools')->where('id', auth()->user()->school_id)->value('title') }}</h3>
-                                @if(empty($school_data->school_logo))
-                                <img class="header-logo" src="{{ asset('assets/uploads/school_logo/'.DB::table('schools')->where('id', auth()->user()->school_id)->value('school_logo') ) }}">
-                            @else
-                                <img class="header-logo" src="{{ asset('assets') }}/images/id_logo.png">
-                            @endif
+                                <img class="header-logo" src="{{ $brandLogo }}" alt="logo">
+                                <h3>{{ $schoolTitle }}</h3>
+                                <img class="header-logo" src="{{ $brandLogo }}" alt="logo">
                             </div>
                             <h4 class="mt-3">{{ $selected_admit_card->heading }}</h4>
                             <p class="mt-3 mb-3"><strong>{{ $selected_admit_card->title }}</strong></p>
@@ -203,7 +214,7 @@ use App\Http\Controllers\CommonController;
                                     </tr>
                                     <tr>
                                         <td><strong>SCHOOL NAME</strong></td>
-                                        <td>{{ DB::table('schools')->where('id', auth()->user()->school_id)->value('title') }}</td>
+                                        <td>{{ $schoolTitle }}</td>
                                         <td><strong>EXAM CENTER</strong></td>
                                         <td>{{ $selected_admit_card->exam_center }}</td>
                                     </tr>
@@ -212,10 +223,8 @@ use App\Http\Controllers\CommonController;
                             </div>
 
                             <div class="signature">
-                            @if($selected_admit_card->sign)
+                            @if($selected_admit_card->sign && file_exists(public_path('assets/upload/user-docs/' . $selected_admit_card->sign)))
                                 <img src="{{ asset('assets/upload/user-docs/' . $selected_admit_card->sign) }}" alt="Signature" style="width: 150px; height: auto;">
-                            @else
-                                <p>No signature uploaded.</p>
                             @endif
                                 <p>_________________________</p>
                                 <p>Signature</p>
@@ -225,11 +234,8 @@ use App\Http\Controllers\CommonController;
                     <br>
                     @endforeach
                 </div>
-                    <div class="admin-tInfo-pagi d-flex justify-content-md-between justify-content-center align-items-center flex-wrap gr-15">
-                        <p class="admin-tInfo">{{ get_phrase('Showing').' 1 - '.count($enroll_students).' '.get_phrase('from').' '.$enroll_students->total().' '.get_phrase('data') }}</p>
-                        <div class="admin-pagi">
-                        {!! $enroll_students->appends(request()->all())->links() !!}
-                        </div>
+                    <div class="admin-tInfo-pagi d-flex justify-content-md-between justify-content-center align-items-center flex-wrap gr-15 no-print">
+                        <p class="admin-tInfo">{{ get_phrase('Showing').' '.count($enroll_students).' '.get_phrase('admit card(s)') }}</p>
                     </div>
                 </div>
             </div>
@@ -262,6 +268,18 @@ use App\Http\Controllers\CommonController;
     window.print();
 
     document.body.innerHTML = originalContents;
+    location.reload();
+    }
+
+    // Print a single student's admit card only
+    function printSingle(cardId) {
+        var card = document.getElementById(cardId);
+        if (!card) return;
+        var originalContents = document.body.innerHTML;
+        document.body.innerHTML = '<div class="admit_card_body">' + card.outerHTML + '</div>';
+        window.print();
+        document.body.innerHTML = originalContents;
+        location.reload();
     }
 
     function classWiseSection(classId) {

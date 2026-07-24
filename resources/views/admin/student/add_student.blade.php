@@ -85,6 +85,8 @@
               />
             </div>
 
+            @include('admin.partials.parent_picker')
+
             <div class="fpb-7 pt-2">
                 <button class="btn-form" type="submit">{{ get_phrase('Create') }}</button>
             </div>

@@ -76,7 +76,7 @@
         <div class="fpb-7">
           <label class="eForm-label">{{ get_phrase('Method') }}</label>
           <select name="method" class="form-select eForm-select">
-            @foreach($methods as $m)<option value="{{ strtolower($m) }}">{{ ucfirst($m) }}</option>@endforeach
+            @foreach($methods as $val => $label)<option value="{{ $val }}">{{ $label }}</option>@endforeach
           </select>
         </div>
         @if($accounts->count())

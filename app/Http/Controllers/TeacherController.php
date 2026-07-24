@@ -44,7 +44,12 @@ class TeacherController extends Controller
      */
     public function teacherDashboard()
     {
-        return view('teacher.dashboard');
+        $session  = get_school_settings(auth()->user()->school_id)->value('running_session');
+        $routines = Routine::where('teacher_id', auth()->user()->id)
+            ->where('session_id', $session)
+            ->where('school_id', auth()->user()->school_id)
+            ->get();
+        return view('teacher.dashboard', compact('routines'));
     }
 
 

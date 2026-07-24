@@ -4,6 +4,7 @@
 @php
   $cls = \App\Models\Classes::find($course->class_id);
   $sub = \App\Models\Subject::find($course->subject_id);
+  $courseSections = \App\Models\Section::where('class_id', $course->class_id)->orderBy('id')->get();
   $platformMeta = [
     'zoom'  => ['label' => 'Zoom',            'icon' => 'bi-camera-video-fill', 'color' => '#2D8CFF'],
     'meet'  => ['label' => 'Google Meet',     'icon' => 'bi-camera-video-fill', 'color' => '#00897B'],
@@ -45,11 +46,16 @@
         <li style="opacity:.9;">{{ $cls->name ?? '' }} &middot; {{ $sub->name ?? '' }}</li>
       </ul>
       <h4>{{ $course->title }}</h4>
+      <a class="eBtn mt-2" style="background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.45);display:inline-flex;"
+         href="{{ route('teacher.addons.course.preview', $course->id) }}" target="_blank">
+        <i class="bi bi-eye"></i>&nbsp;{{ get_phrase('View as student') }}
+      </a>
     </div>
     <div class="d-flex" style="gap:10px;">
       <div class="kh-stat"><div class="n">{{ $students->count() }}</div><div class="l">{{ get_phrase('Students') }}</div></div>
       <div class="kh-stat"><div class="n">{{ $course->topics->count() }}</div><div class="l">{{ get_phrase('Topics') }}</div></div>
       <div class="kh-stat"><div class="n">{{ $coursework->count() }}</div><div class="l">{{ get_phrase('Coursework') }}</div></div>
+      <div class="kh-stat"><div class="n">{{ $cats->count() + $sittingCats->count() }}</div><div class="l">{{ get_phrase('CATs') }}</div></div>
       <div class="kh-stat"><div class="n">{{ $upcoming->count() }}</div><div class="l">{{ get_phrase('Live') }}</div></div>
     </div>
   </div>
@@ -63,8 +69,12 @@
     <i class="bi bi-people"></i> {{ get_phrase('Students') }} <span class="badge bg-secondary">{{ $students->count() }}</span></button></li>
   <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-coursework" type="button">
     <i class="bi bi-journal-check"></i> {{ get_phrase('Coursework') }} <span class="badge bg-secondary">{{ $coursework->count() }}</span></button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-cats" type="button">
+    <i class="bi bi-patch-question"></i> {{ get_phrase('CATs & Exams') }} <span class="badge bg-secondary">{{ $cats->count() + $sittingCats->count() }}</span></button></li>
   <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-sessions" type="button">
     <i class="bi bi-camera-video"></i> {{ get_phrase('Online Sessions') }} <span class="badge bg-success">{{ $upcoming->count() }}</span></button></li>
+  <li class="nav-item"><a class="nav-link" href="{{ route('teacher.addons.course.attendance', $course->id) }}">
+    <i class="bi bi-calendar-check"></i> {{ get_phrase('Attendance') }}</a></li>
 </ul>
 
 <div class="tab-content">
@@ -241,7 +251,7 @@
         <div class="table-responsive">
           <table class="table eTable eTable-2 mb-0" style="font-size:13.5px;">
             <thead><tr>
-              <th>{{ get_phrase('Title') }}</th><th>{{ get_phrase('Type') }}</th><th>{{ get_phrase('Deadline') }}</th>
+              <th>{{ get_phrase('Title') }}</th><th>{{ get_phrase('Section') }}</th><th>{{ get_phrase('Deadline') }}</th>
               <th class="text-center">{{ get_phrase('Submissions') }}</th><th class="text-center">{{ get_phrase('Graded') }}</th>
               <th class="text-end">{{ get_phrase('Action') }}</th>
             </tr></thead>
@@ -249,16 +259,21 @@
               @foreach($coursework as $cw)
                 <tr>
                   <td style="font-weight:600;">{{ $cw->title }}</td>
-                  <td>
-                    @if($cw->is_quiz)<span class="kh-pill green">{{ get_phrase('Quiz') }}</span>
-                    @else<span class="kh-pill grey">{{ get_phrase('Assignment') }}</span>@endif
-                  </td>
-                  <td>{{ $cw->deadline ? date('d M Y, H:i', strtotime($cw->deadline)) : '—' }}</td>
+                  <td>{{ optional(\App\Models\Section::find($cw->section_id))->name ?? '—' }}</td>
+                  <td>{{ $cw->deadline ? date('d M Y, H:i', (int) $cw->deadline) : '—' }}</td>
                   <td class="text-center"><span class="badge bg-primary">{{ $cw->submission_count }}</span></td>
                   <td class="text-center"><span class="badge bg-success">{{ $cw->graded_count }}</span></td>
-                  <td class="text-end">
-                    <a class="eBtn btn-secondary" href="{{ route('teacher.assignment.show', $cw->id) }}">
-                      <i class="bi bi-eye"></i> {{ get_phrase('Open & grade') }}</a>
+                  <td>
+                    <div class="kh-actions">
+                      <a class="eBtn btn-secondary" href="{{ route('teacher.assignment.show', $cw->id) }}">
+                        <i class="bi bi-eye"></i> {{ get_phrase('Open & grade') }}</a>
+                      <form method="POST" action="{{ route('teacher.assignment.delete', $cw->id) }}" style="margin:0;"
+                            onsubmit="return confirm('{{ get_phrase('Delete this coursework and all its submissions? This cannot be undone.') }}')">
+                        @csrf
+                        <button type="submit" class="eBtn kh-icon" style="background:#fdecec;color:#c0392b;" title="{{ get_phrase('Delete coursework') }}">
+                          <i class="bi bi-trash"></i></button>
+                      </form>
+                    </div>
                   </td>
                 </tr>
               @endforeach
@@ -269,6 +284,126 @@
         <div class="text-center text-muted py-4">
           <i class="bi bi-journal-x" style="font-size:34px;opacity:.4;"></i>
           <p class="mb-0 mt-2">{{ get_phrase('No coursework yet. Click “Add coursework” to set an assignment or quiz for this class.') }}</p>
+        </div>
+      @endif
+    </div>
+  </div>
+
+  {{-- ============================ CATS & EXAMS TAB ============================ --}}
+  <div class="tab-pane fade" id="tab-cats">
+    <div class="kh-card">
+      <div class="d-flex justify-content-between align-items-center flex-wrap mb-3" style="gap:10px;">
+        <h5 class="mb-0"><i class="bi bi-patch-question me-2" style="color:#00955f;"></i>{{ get_phrase('CATs & exams') }}</h5>
+        <div class="d-flex flex-wrap" style="gap:8px;">
+          <a class="eBtn btn-secondary" href="javascript:;"
+             onclick="rightModal('{{ route('teacher.addons.course.sitting_cat.create_modal', $course->id) }}', '{{ get_phrase('Schedule sitting CAT') }}')">
+             <i class="bi bi-building"></i> {{ get_phrase('Schedule sitting CAT') }}</a>
+          <a class="eBtn btn-primary" href="javascript:;"
+             onclick="rightModal('{{ route('teacher.addons.course.cat.create_modal', $course->id) }}', '{{ get_phrase('Create Online CAT') }}')">
+             <i class="bi bi-plus"></i> {{ get_phrase('Create Online CAT') }}</a>
+        </div>
+      </div>
+      <p class="text-muted" style="font-size:12.5px;margin-top:-8px;">
+        {{ get_phrase('For') }} <b>{{ $cls->name ?? '' }} &middot; {{ $sub->name ?? '' }}</b> —
+        {{ get_phrase('an online CAT is auto-graded from your question bank; a sitting CAT is a physical paper whose marks you enter afterwards.') }}
+      </p>
+
+      <h6 class="mt-3 mb-2" style="color:#00955f;"><i class="bi bi-wifi me-1"></i>{{ get_phrase('Online CATs') }}</h6>
+      @if($cats->count())
+        <div class="table-responsive">
+          <table class="table eTable eTable-2 mb-0" style="font-size:13.5px;">
+            <thead><tr>
+              <th>{{ get_phrase('Title') }}</th><th>{{ get_phrase('Section') }}</th>
+              <th class="text-center">{{ get_phrase('Questions') }}</th><th class="text-center">{{ get_phrase('Marks') }}</th>
+              <th class="text-center">{{ get_phrase('Time limit') }}</th><th>{{ get_phrase('Deadline') }}</th>
+              <th class="text-center">{{ get_phrase('Submissions') }}</th><th class="text-center">{{ get_phrase('Graded') }}</th>
+              <th class="text-end">{{ get_phrase('Action') }}</th>
+            </tr></thead>
+            <tbody>
+              @foreach($cats as $c)
+                @php $closed = $c->deadline && (int) $c->deadline < time(); @endphp
+                <tr>
+                  <td style="font-weight:600;">{{ $c->title }}</td>
+                  <td>{{ optional(\App\Models\Section::find($c->section_id))->name ?? '—' }}</td>
+                  <td class="text-center">{{ $c->question_count }}</td>
+                  <td class="text-center">{{ $c->total_marks }}</td>
+                  <td class="text-center">{{ $c->duration_minutes ? $c->duration_minutes.' '.get_phrase('min') : '—' }}</td>
+                  <td>
+                    @if($c->deadline)
+                      {{ date('d M Y, H:i', (int) $c->deadline) }}
+                      @if($closed)<span class="kh-pill red">{{ get_phrase('Closed') }}</span>
+                      @else<span class="kh-pill green">{{ get_phrase('Open') }}</span>@endif
+                    @else — @endif
+                  </td>
+                  <td class="text-center"><span class="badge bg-primary">{{ $c->submission_count }}</span></td>
+                  <td class="text-center"><span class="badge bg-success">{{ $c->graded_count }}</span></td>
+                  <td>
+                    <div class="kh-actions">
+                      <a class="eBtn btn-secondary kh-icon" href="{{ route('teacher.quiz.paper', $c->id) }}" target="_blank" title="{{ get_phrase('Preview / print paper') }}">
+                        <i class="bi bi-printer"></i></a>
+                      <a class="eBtn btn-secondary" href="{{ route('teacher.quiz.questions', $c->id) }}">
+                        <i class="bi bi-list-check"></i> {{ get_phrase('Questions') }}</a>
+                      <a class="eBtn btn-primary" href="{{ route('teacher.quiz.review', $c->id) }}">
+                        <i class="bi bi-clipboard-check"></i> {{ get_phrase('Mark / Review') }}</a>
+                    </div>
+                  </td>
+                </tr>
+              @endforeach
+            </tbody>
+          </table>
+        </div>
+      @else
+        <div class="text-center text-muted py-3" style="font-size:13px;">
+          {{ get_phrase('No online CATs yet — click "Create Online CAT" to auto-generate one from your question bank.') }}
+        </div>
+      @endif
+
+      <h6 class="mt-4 mb-2" style="color:#a37b1d;"><i class="bi bi-building me-1"></i>{{ get_phrase('Sitting CATs & physical exams') }}</h6>
+      @if($sittingCats->count())
+        <div class="table-responsive">
+          <table class="table eTable eTable-2 mb-0" style="font-size:13.5px;">
+            <thead><tr>
+              <th>{{ get_phrase('Title') }}</th><th>{{ get_phrase('Category') }}</th>
+              <th>{{ get_phrase('Sits on') }}</th><th>{{ get_phrase('Room') }}</th>
+              <th class="text-center">{{ get_phrase('Questions') }}</th>
+              <th class="text-center">{{ get_phrase('Total marks') }}</th>
+              <th class="text-center">{{ get_phrase('Marked') }}</th>
+              <th class="text-end">{{ get_phrase('Action') }}</th>
+            </tr></thead>
+            <tbody>
+              @foreach($sittingCats as $e)
+                @php $sat = (int) $e->ending_time < time(); @endphp
+                <tr>
+                  <td style="font-weight:600;">{{ $e->name }}</td>
+                  <td>{{ optional(\App\Models\ExamCategory::find($e->exam_category_id))->name ?? '—' }}</td>
+                  <td>
+                    {{ date('d M Y, H:i', (int) $e->starting_time) }}
+                    @if($sat)<span class="kh-pill grey">{{ get_phrase('Sat') }}</span>
+                    @else<span class="kh-pill green">{{ get_phrase('Upcoming') }}</span>@endif
+                  </td>
+                  <td>{{ $e->room_number ?: '—' }}</td>
+                  <td class="text-center">{{ $e->question_count }}</td>
+                  <td class="text-center">{{ (int) $e->total_marks }}</td>
+                  <td class="text-center"><span class="badge bg-success">{{ $e->marked_count }}</span></td>
+                  <td>
+                    <div class="kh-actions">
+                      <a class="eBtn btn-secondary kh-icon" href="{{ route('teacher.addons.course.sitting_cat.paper', $e->id) }}" target="_blank" title="{{ get_phrase('Preview / print paper') }}">
+                        <i class="bi bi-printer"></i></a>
+                      <a class="eBtn btn-secondary" href="{{ route('teacher.addons.course.sitting_cat.questions', $e->id) }}">
+                        <i class="bi bi-list-check"></i> {{ get_phrase('Questions') }}</a>
+                      <a class="eBtn btn-primary" href="{{ route('teacher.addons.course.sitting_cat.marks', $e->id) }}">
+                        <i class="bi bi-pencil-square"></i> {{ get_phrase('Enter marks') }}</a>
+                    </div>
+                  </td>
+                </tr>
+              @endforeach
+            </tbody>
+          </table>
+        </div>
+        <small class="text-muted d-block mt-2">{{ get_phrase('Set the paper’s questions, print it, then enter each student’s score here — marks go straight into the gradebook and feed report cards & transcripts.') }}</small>
+      @else
+        <div class="text-center text-muted py-3" style="font-size:13px;">
+          {{ get_phrase('No sitting CATs scheduled — click "Schedule sitting CAT" to plan a physical paper.') }}
         </div>
       @endif
     </div>
@@ -407,5 +542,13 @@
     document.getElementById('kh-remove-reason').value  = reason;
     document.getElementById('kh-remove-form').submit();
   }
+
+  // open the tab named in the URL hash (e.g. redirect back to #tab-cats after creating a CAT)
+  document.addEventListener('DOMContentLoaded', function(){
+    if(window.location.hash){
+      var btn = document.querySelector('.kh-tabs button[data-bs-target="' + window.location.hash + '"]');
+      if(btn && window.bootstrap && bootstrap.Tab) new bootstrap.Tab(btn).show();
+    }
+  });
 </script>
 @endsection

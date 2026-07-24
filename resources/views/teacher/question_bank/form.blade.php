@@ -1,11 +1,18 @@
 @php
   $isEdit = $question !== null;
+  $attachQuiz = $attachQuiz ?? null;
   $opts = $isEdit && is_array($question->options) ? $question->options : ['', '', '', ''];
   while (count($opts) < 4) $opts[] = '';
 @endphp
 <form method="POST" class="d-block"
       action="{{ $isEdit ? route('teacher.qbank.update', $question->id) : route('teacher.qbank.store') }}">
   @csrf
+  @if($attachQuiz)
+    <input type="hidden" name="attach_quiz_id" value="{{ $attachQuiz->id }}">
+    <div class="p-2 mb-3" style="background:#f2f9f6;border:1px solid #d9efe6;border-radius:10px;font-size:13px;">
+      {{ get_phrase('This question will be saved to the bank AND added to') }} <b>{{ $attachQuiz->title }}</b>.
+    </div>
+  @endif
   <div class="form-row">
     <div class="fpb-7">
       <label class="eForm-label">{{ get_phrase('Question type') }}</label>
@@ -17,6 +24,11 @@
       </select>
     </div>
 
+    @if($attachQuiz)
+      {{-- class + subject fixed by the CAT --}}
+      <input type="hidden" name="class_id" value="{{ $attachQuiz->class_id }}">
+      <input type="hidden" name="subject_id" value="{{ $attachQuiz->subject_id }}">
+    @else
     <div class="fpb-7">
       <label class="eForm-label">{{ get_phrase('Class') }}</label>
       <select class="form-select eForm-select" id="q_class" name="class_id" onchange="qClassSubjects(this.value)" required>
@@ -33,6 +45,7 @@
         <option value="">{{ get_phrase('Select a subject') }}</option>
       </select>
     </div>
+    @endif
 
     <div class="fpb-7">
       <label class="eForm-label">{{ get_phrase('Question') }}</label>

@@ -98,7 +98,7 @@
 	        </li>
 			<!-- Sidebar menu -->
 
-			<li class="nav-links-li {{ request()->is('teacher/attendance*') || request()->is('teacher/routine') || request()->is('teacher/timetable') || request()->is('teacher/subject') || request()->is('teacher/gradebook') || request()->is('teacher/syllabus') ? 'showMenu':'' }}">
+			<li class="nav-links-li {{ request()->is('teacher/routine') || request()->is('teacher/timetable') || request()->is('teacher/subject') || request()->is('teacher/gradebook') || request()->is('teacher/syllabus') ? 'showMenu':'' }}">
 				<div class="iocn-link">
 					<a href="#">
 						<div class="sidebar_icon">
@@ -123,7 +123,6 @@
 	                </span>
 				</div>
 				<ul class="sub-menu">
-					<li><a class="{{ (request()->is('teacher/attendance*')) ? 'active' : '' }}" href="{{ route('teacher.daily_attendance') }}"><span>{{ get_phrase('Daily Attendance') }}</span></a></li>
 					<li><a class="{{ (request()->is('teacher/routine')) ? 'active' : '' }}" href="{{ route('teacher.routine') }}"><span>{{ get_phrase('Class Routine') }}</span></a></li>
 					<li><a class="{{ (request()->is('teacher/timetable')) ? 'active' : '' }}" href="{{ route('teacher.timetable') }}"><span>{{ get_phrase('My Timetable') }}</span></a></li>
                     <li><a class="{{ (request()->is('teacher/subject')) ? 'active' : '' }}" href="{{ route('teacher.subject_list') }}"><span>{{ get_phrase('Subjects') }}</span></a></li>
@@ -340,9 +339,20 @@
                 </div>
             </li>
 
+            <li class="nav-links-li {{ request()->is('teacher/online-cats*') ? 'showMenu':'' }}">
+                <div class="iocn-link">
+                    <a class="{{ request()->is('teacher/online-cats*') ? 'active' : '' }}" href="{{ route('teacher.qbank.quizzes') }}">
+                        <div class="sidebar_icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48" height="48"><path d="M19 3h-2.18A3 3 0 0 0 14 1h-4a3 3 0 0 0-2.82 2H5a3 3 0 0 0-3 3v14a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V6a3 3 0 0 0-3-3zM9 4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1H9zm11 16a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h2v1a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5h2a1 1 0 0 1 1 1zm-4.29-8.71-4.24 4.24-2.12-2.12a1 1 0 0 0-1.42 1.42l2.83 2.83a1 1 0 0 0 1.42 0l4.95-4.95a1 1 0 0 0-1.42-1.42z"/></svg>
+                        </div>
+                        <span class="link_name">{{ get_phrase('Online CATs') }}</span>
+                    </a>
+                </div>
+            </li>
+
             @endif
 
-            <li class="nav-links-li {{ request()->is('teacher/noticeboard*') || request()->is('teacher/events/list*') || request()->is('teacher/feedback-list*')  ? 'showMenu':'' }}">
+            <li class="nav-links-li {{ request()->is('teacher/noticeboard*') || request()->is('teacher/events/list*')  ? 'showMenu':'' }}">
 	            <div class="iocn-link">
 	                <a href="#">
 	                    <div class="sidebar_icon">
@@ -379,10 +389,6 @@
 	                    	<span>{{ get_phrase('Events') }}</span>
 	                    </a>
 	                </li>
-                  <li>
-                    <a class="{{ (request()->is('teacher/feedback-list*')) ? 'active' : '' }}" href="{{ route('teacher.feedback.feedback_list') }}"><span>{{ get_phrase('Feedback') }}
-                    </span></a>
-                </li>
 	            </ul>
 	        </li>
 

@@ -38,20 +38,14 @@ if($date_to == "") {
 <div class="row">
     <div class="col-12">
         <div class="eSection-wrap">
+            <p class="text-muted mb-2" style="font-size:12.5px;"><i class="bi bi-info-circle"></i> {{ get_phrase('Showing all your fees for the current session. The filters below are optional — leave them empty to see everything.') }}</p>
             <form method="GET" enctype="multipart/form-data" class="d-block ajaxForm" action="{{ route('student.fee_manager.list') }}">
             	<div class="row">
                     <div class="row justify-content-md-center">
-                    	@if($date_from != "" && $date_to !="")
-                            <div class="col-xl-3 mb-3">
-                                <input type="text" class="form-control eForm-control" name="eDateRange"
-                                    value="{{ date('m/d/Y', $date_from).' - '.date('m/d/Y', $date_to) }}" />
-                            </div>
-                        @else
-		                    <div class="col-xl-3 mb-3">
-                                <input type="text" class="form-control eForm-control" name="eDateRange"
-                                    value="{{ date('m/d/Y', strtotime(' -30 day')).' - '.date('m/d/Y') }}" />
-                            </div>
-		                @endif
+                        <div class="col-xl-3 mb-3">
+                            <input type="text" class="form-control eForm-control" name="eDateRange"
+                                value="{{ request('eDateRange') }}" placeholder="{{ get_phrase('All dates (optional)') }}" />
+                        </div>
 
 				        <div class="col-xl-2 mb-3">
 				        	@if(isset($selected_status) && $selected_status != "")
