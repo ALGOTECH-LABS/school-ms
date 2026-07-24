@@ -20,6 +20,7 @@ use App\Models\Exam;
 use App\Models\ExamCategory;
 use App\Models\ExamQuestion;
 use App\Models\Gradebook;
+use App\Models\DailyAttendances;
 use App\Models\CourseSession;
 use App\Models\CourseRemoval;
 use App\Models\Section;
@@ -606,6 +607,64 @@ class OnlineCourseController extends Controller
             ->with('message', $saved . ' ' . get_phrase('student mark(s) saved — they now appear on report cards & transcripts.'));
     }
 
+    /* ================= course daily attendance (students on the course = the class) ================= */
+
+    public function courseAttendance(Request $request, $id)
+    {
+        $course = $this->ownedCourse($id);
+
+        // date (app tz midnight); default today
+        $dateStr = $request->date ?: date('Y-m-d');
+        $ts = strtotime(date('Y-m-d', strtotime($dateStr)));
+
+        // roster: every student on the course's class, with their section
+        $enrollments = Enrollment::where('class_id', $course->class_id)->where('school_id', $course->school_id)->get();
+        $sectionNames  = Section::whereIn('id', $enrollments->pluck('section_id'))->pluck('name', 'id');
+        $sectionByUser = $enrollments->pluck('section_id', 'user_id');
+        $students = User::whereIn('id', $enrollments->pluck('user_id'))->where('role_id', 7)->orderBy('name')->get()
+            ->map(function ($s) use ($sectionByUser, $sectionNames) {
+                $s->section_id   = $sectionByUser[$s->id] ?? null;
+                $s->section_name = $sectionNames[$s->section_id] ?? '-';
+                return $s;
+            });
+
+        // existing marks for that day
+        $marks = DailyAttendances::where('class_id', $course->class_id)->where('timestamp', $ts)
+            ->where('school_id', $course->school_id)->get()->keyBy('student_id');
+        $existing = $marks->map(fn ($m) => (int) $m->status);        // student_id => status(1/0)
+        $anyMarked = $marks->count() > 0;
+
+        return view('teacher.courses.attendance', [
+            'course' => $course, 'students' => $students, 'existing' => $existing,
+            'date' => date('Y-m-d', $ts), 'anyMarked' => $anyMarked,
+            'className'   => optional(Classes::find($course->class_id))->name,
+            'subjectName' => optional(Subject::find($course->subject_id))->name,
+        ]);
+    }
+
+    public function courseAttendanceSave(Request $request)
+    {
+        $course  = $this->ownedCourse($request->course_id);
+        $ts      = strtotime(date('Y-m-d', strtotime($request->date ?: date('Y-m-d'))));
+        $session = $this->activeSession();
+        $saved   = 0;
+
+        foreach (($request->student_id ?? []) as $sid) {
+            $enroll = Enrollment::where('user_id', $sid)->where('class_id', $course->class_id)
+                ->where('school_id', $course->school_id)->first();
+            if (!$enroll) continue;
+            DailyAttendances::updateOrCreate(
+                ['timestamp' => $ts, 'class_id' => $course->class_id, 'section_id' => $enroll->section_id,
+                 'session_id' => $session, 'school_id' => $course->school_id, 'student_id' => $sid],
+                ['status' => (int) $request->input('status-' . $sid, 0)]
+            );
+            $saved++;
+        }
+
+        return redirect()->route('teacher.addons.course.attendance', ['id' => $course->id, 'date' => date('Y-m-d', $ts)])
+            ->with('message', $saved . ' ' . get_phrase('attendance record(s) saved for') . ' ' . date('d M Y', $ts) . '.');
+    }
+
     /* ---- teacher preview: see the course exactly as a student does ---- */
     public function teacherPreview($id)
     {
@@ -635,7 +694,8 @@ class OnlineCourseController extends Controller
             && $x->session_date && $x->session_date->copy()->addMinutes((int) $x->duration_minutes)->gte($now)))
             ->sortByDesc('session_date')->values();
 
-        return view('student.courses.view', compact('course', 'syllabus', 'assignments', 'sittingExams', 'upcoming', 'past'))
+        $results = collect();
+        return view('student.courses.view', compact('course', 'syllabus', 'assignments', 'sittingExams', 'upcoming', 'past', 'results'))
             ->with('preview', true);
     }
 
@@ -914,7 +974,61 @@ class OnlineCourseController extends Controller
             && $x->session_date && $x->session_date->copy()->addMinutes((int) $x->duration_minutes)->gte($now)))
             ->sortByDesc('session_date')->values();
 
-        return view('student.courses.view', compact('course', 'syllabus', 'assignments', 'sittingExams', 'upcoming', 'past'));
+        $results = $this->studentCourseResults($course, $enroll, auth()->user()->id);
+
+        return view('student.courses.view', compact('course', 'syllabus', 'assignments', 'sittingExams', 'upcoming', 'past', 'results'));
+    }
+
+    /** A student's own results for a course: online CAT scores + sitting exam gradebook marks. */
+    private function studentCourseResults($course, $enroll, $student_id)
+    {
+        $results = collect();
+
+        // online CATs (auto-graded quizzes) the student has sat
+        $quizzes = Assignment::where('class_id', $course->class_id)
+            ->where('section_id', $enroll->section_id)->where('subject_id', $course->subject_id)
+            ->where('school_id', $this->schoolId())->where('is_quiz', 1)->get()->keyBy('id');
+        if ($quizzes->isNotEmpty()) {
+            $subs = AssignmentSubmission::where('student_id', $student_id)
+                ->whereIn('assignment_id', $quizzes->keys())->get();
+            foreach ($subs as $sub) {
+                $a = $quizzes[$sub->assignment_id] ?? null;
+                $results->push([
+                    'title'  => $a ? $a->title : 'CAT',
+                    'type'   => 'Online CAT',
+                    'score'  => $sub->obtained_marks,
+                    'total'  => $a ? (int) $a->total_marks : null,
+                    'status' => $sub->status === 'returned' ? 'graded' : 'pending',
+                    'date'   => $sub->graded_at ? date('d M Y', (int) $sub->graded_at) : null,
+                ]);
+            }
+        }
+
+        // sitting exams — marks live in the gradebook keyed by exam_category + subject
+        $exams = Exam::where('exam_type', 'offline')->where('class_id', $course->class_id)
+            ->where('subject_id', $course->subject_id)->where('school_id', $this->schoolId())
+            ->where('session_id', $this->activeSession())->orderByDesc('starting_time')->get();
+        if ($exams->isNotEmpty()) {
+            $gradebooks = Gradebook::where('student_id', $student_id)->where('class_id', $course->class_id)
+                ->where('section_id', $enroll->section_id)->where('school_id', $this->schoolId())
+                ->where('session_id', $this->activeSession())->get()->keyBy('exam_category_id');
+            foreach ($exams as $ex) {
+                $g = $gradebooks[$ex->exam_category_id] ?? null;
+                if (!$g) continue;
+                $marks = json_decode($g->marks, true) ?: [];
+                if (!isset($marks[$course->subject_id])) continue;
+                $results->push([
+                    'title'  => $ex->name,
+                    'type'   => 'Sitting exam',
+                    'score'  => $marks[$course->subject_id],
+                    'total'  => (int) $ex->total_marks,
+                    'status' => 'graded',
+                    'date'   => $ex->starting_time ? date('d M Y', (int) $ex->starting_time) : null,
+                ]);
+            }
+        }
+
+        return $results;
     }
 
     /* ===================================================================== ADMIN */

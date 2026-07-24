@@ -215,6 +215,25 @@
     </div>
 
     <div class="side-card">
+      <h6><i class="bi bi-award" style="color:#00955f;"></i> {{ get_phrase('My results') }}</h6>
+      @forelse(($results ?? collect()) as $r)
+        @php $pct = ($r['total'] && $r['score'] !== null) ? round($r['score'] / $r['total'] * 100) : null; @endphp
+        <div class="side-link" style="cursor:default;">
+          <span class="t">{{ $r['title'] }} <span class="badge-type" style="background:{{ $r['type']==='Online CAT' ? '#e8f5ef' : '#fdf6e6' }};color:{{ $r['type']==='Online CAT' ? '#00794c' : '#a37b1d' }};">{{ $r['type'] }}</span></span>
+          <span class="d">
+            @if($r['status']==='graded' && $r['score'] !== null)
+              <b style="color:{{ $pct !== null && $pct>=50 ? '#00955f' : '#c0392b' }};">{{ rtrim(rtrim(number_format((float)$r['score'],2),'0'),'.') }}{{ $r['total'] ? '/'.$r['total'] : '' }}</b>@if($pct !== null) · {{ $pct }}%@endif
+            @else
+              <span style="color:#a37b1d;">{{ get_phrase('Awaiting result') }}</span>
+            @endif
+          </span>
+        </div>
+      @empty
+        <span class="side-empty">{{ get_phrase('No results yet — they appear here after each CAT or exam is marked.') }}</span>
+      @endforelse
+    </div>
+
+    <div class="side-card">
       <h6><i class="bi bi-journal-check" style="color:#00955f;"></i> {{ get_phrase('Assignments') }}</h6>
       @forelse($assignments as $a)
         @php

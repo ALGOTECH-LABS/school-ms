@@ -73,6 +73,8 @@
     <i class="bi bi-patch-question"></i> {{ get_phrase('CATs & Exams') }} <span class="badge bg-secondary">{{ $cats->count() + $sittingCats->count() }}</span></button></li>
   <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-sessions" type="button">
     <i class="bi bi-camera-video"></i> {{ get_phrase('Online Sessions') }} <span class="badge bg-success">{{ $upcoming->count() }}</span></button></li>
+  <li class="nav-item"><a class="nav-link" href="{{ route('teacher.addons.course.attendance', $course->id) }}">
+    <i class="bi bi-calendar-check"></i> {{ get_phrase('Attendance') }}</a></li>
 </ul>
 
 <div class="tab-content">
